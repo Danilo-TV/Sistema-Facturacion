@@ -1,0 +1,53 @@
+{% extends 'facturacion/base.html' %}
+{% block title %}{{ titulo }} — Facturación{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="fas fa-tag mr-2"></i>{{ titulo }}</h4>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label class="control-label">Nombre *</label>
+                        <input type="text" name="nombre" class="form-control" value="{{ form.nombre.value|default:'' }}" required maxlength="100">
+                        {% if form.nombre.errors %}<div class="text-danger small">{{ form.nombre.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label">Categoría Padre</label>
+                        <select name="categoria_padre" class="form-control">
+                            <option value="">— Ninguna —</option>
+                            {% for cat in categorias %}
+                                {% if cat.pk != form.instance.pk %}
+                                <option value="{{ cat.pk }}" {% if form.categoria_padre.value|stringformat:"s" == cat.pk|stringformat:"s" %}selected{% endif %}>
+                                    {{ cat.nombre }}
+                                </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label">Descripción</label>
+                        <textarea name="descripcion" class="form-control" rows="3">{{ form.descripcion.value|default:'' }}</textarea>
+                    </div>
+                    <div class="form-group form-check">
+                        <input type="checkbox" name="is_active" class="form-check-input" id="id_is_active" {% if form.is_active.value or not form.instance.pk %}checked{% endif %}>
+                        <label class="form-check-label" for="id_is_active">Activo</label>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'facturacion:categoria_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Guardar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

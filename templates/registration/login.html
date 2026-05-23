@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión — Facturación</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2.0/dist/css/adminlte.min.css">
+    <style>
+        body { background: linear-gradient(135deg, #1e293b 0%, #334155 100%); min-height: 100vh; }
+        .login-card { max-width: 420px; margin-top: 12vh; border: none; border-radius: 12px; overflow: hidden; }
+        .login-header { background: #0d6efd; padding: 2rem 1.5rem; text-align: center; }
+        .login-header h3 { color: #fff; margin: 0; font-weight: 600; }
+        .login-header i { font-size: 2.5rem; color: rgba(255,255,255,0.9); margin-bottom: 0.5rem; }
+        .login-body { padding: 2rem 1.5rem; background: #fff; }
+        .form-control:focus { border-color: #0d6efd; box-shadow: 0 0 0 0.2rem rgba(13,110,253,0.15); }
+        .btn-login { padding: 0.6rem 1rem; font-weight: 500; }
+    </style>
+</head>
+<body class="hold-transition">
+<div class="wrapper">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card shadow-lg login-card">
+                    <div class="login-header">
+                        <i class="fas fa-calculator"></i>
+                        <h3>Sistema de Facturación</h3>
+                    </div>
+                    <div class="login-body">
+                        {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle mr-2"></i>
+                            Usuario o contraseña incorrectos.
+                        </div>
+                        {% endif %}
+                        <form method="post" novalidate>
+                            {% csrf_token %}
+                            <div class="form-group">
+                                <label>Usuario</label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                    </div>
+                                    <input type="text" name="username" class="form-control" placeholder="Nombre de usuario" required autofocus>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Contraseña</label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                    </div>
+                                    <input type="password" name="password" class="form-control" placeholder="Contraseña" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block btn-login">
+                                <i class="fas fa-sign-in-alt mr-2"></i> Ingresar
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

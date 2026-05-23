@@ -1,0 +1,103 @@
+<aside class="main-sidebar sidebar-dark-primary elevation-4">
+    <!-- Brand -->
+    <a href="{% url 'facturacion:dashboard' %}" class="brand-link">
+        <i class="fas fa-calculator brand-image"></i>
+        <span class="brand-text font-weight-light">Facturación</span>
+    </a>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <nav class="mt-2">
+            <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu">
+                <!-- Dashboard -->
+                <li class="nav-item">
+                    <a href="{% url 'facturacion:dashboard' %}" class="nav-link">
+                        <i class="nav-icon fas fa-tachometer-alt"></i>
+                        <p>Dashboard</p>
+                    </a>
+                </li>
+
+                <!-- Facturación -->
+                <li class="nav-item has-treeview">
+                    <a href="#" class="nav-link">
+                        <i class="nav-icon fas fa-file-invoice"></i>
+                        <p>
+                            Facturación
+                            <i class="right fas fa-angle-left"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="{% url 'facturacion:factura_create' %}" class="nav-link">
+                                <i class="fas fa-plus-circle nav-icon"></i>
+                                <p>Nueva Factura</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{% url 'facturacion:factura_list' %}" class="nav-link">
+                                <i class="fas fa-list nav-icon"></i>
+                                <p>Historial</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- Inventario -->
+                <li class="nav-item has-treeview">
+                    <a href="#" class="nav-link">
+                        <i class="nav-icon fas fa-box"></i>
+                        <p>
+                            Inventario
+                            <i class="right fas fa-angle-left"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="{% url 'facturacion:producto_list' %}" class="nav-link">
+                                <i class="fas fa-boxes nav-icon"></i>
+                                <p>Productos</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{% url 'facturacion:producto_create' %}" class="nav-link">
+                                <i class="fas fa-plus nav-icon"></i>
+                                <p>Nuevo Producto</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{% url 'facturacion:categoria_list' %}" class="nav-link">
+                                <i class="fas fa-tags nav-icon"></i>
+                                <p>Categorías</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- Clientes -->
+                <li class="nav-item has-treeview">
+                    <a href="#" class="nav-link">
+                        <i class="nav-icon fas fa-users"></i>
+                        <p>
+                            Clientes
+                            <i class="right fas fa-angle-left"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="{% url 'facturacion:cliente_list' %}" class="nav-link">
+                                <i class="fas fa-list nav-icon"></i>
+                                <p>Listado</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{% url 'facturacion:cliente_create' %}" class="nav-link">
+                                <i class="fas fa-user-plus nav-icon"></i>
+                                <p>Nuevo Cliente</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</aside>

@@ -1,0 +1,569 @@
+{% extends 'facturacion/base.html' %}
+{% block title %}Nueva Factura — Facturación{% endblock %}
+{% block page_title %}Nueva Factura{% endblock %}
+{% block content %}
+
+<form id="factura-form" method="post" novalidate>
+    {% csrf_token %}
+
+    <!-- ===== CARD: DATOS DEL CLIENTE ===== -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-user mr-2"></i>Datos del Cliente
+            </h3>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-5">
+                    <div class="form-group">
+                        <label class="control-label">Cliente *</label>
+                        <select class="form-control select2-cliente" name="cliente" id="id_cliente" required>
+                            <option value="">Buscar cliente…</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="control-label">Tasa Cambio *</label>
+                        <input type="number" name="tasa_cambio" id="id_tasa_cambio" class="form-control"
+                               step="0.0001" min="0" required placeholder="0.0000"
+                               oninput="calcularTotales()">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="control-label">Moneda *</label>
+                        <select name="moneda_principal" id="id_moneda_principal" class="form-control">
+                            <option value="bs">Bolívares (Bs)</option>
+                            <option value="usd">Dólares (USD)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="control-label">Tipo Documento *</label>
+                        <select name="tipo_documento" class="form-control">
+                            <option value="factura">Factura</option>
+                            <option value="nota_debito">Nota de Débito</option>
+                            <option value="nota_credito">Nota de Crédito</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== CARD: PRODUCTOS Y DETALLES ===== -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-shopping-cart mr-2"></i>Productos
+            </h3>
+        </div>
+        <div class="card-body">
+            <!-- Agregar producto -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="control-label">Producto</label>
+                        <select class="form-control select2-producto" id="id_producto_buscar">
+                            <option value="">Buscar producto por código o nombre…</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="control-label">Cantidad</label>
+                        <input type="number" id="id_cantidad_agregar" class="form-control" value="1" min="1">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="control-label">&nbsp;</label>
+                        <button type="button" class="btn btn-success btn-block" onclick="agregarProducto()">
+                            <i class="fas fa-plus"></i> Agregar
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label class="control-label">&nbsp;</label>
+                        <button type="button" class="btn btn-danger btn-block" onclick="limpiarDetalles()">
+                            <i class="fas fa-trash"></i> Limpiar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla de Detalles -->
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" id="tabla-detalles">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th style="display:none;">ID</th>
+                            <th>Producto</th>
+                            <th class="text-right" style="width:100px;">Cantidad</th>
+                            <th class="text-right" style="width:120px;">Precio Bs</th>
+                            <th class="text-right" style="width:120px;">Precio USD</th>
+                            <th class="text-right" style="width:120px;">Descuento Bs</th>
+                            <th class="text-right" style="width:120px;">IVA 16% Bs</th>
+                            <th class="text-right" style="width:120px;">Total Bs</th>
+                            <th class="text-center" style="width:60px;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detalles-body">
+                        <!-- Las filas se agregan dinámicamente con JS -->
+                    </tbody>
+                    <tfoot class="table-active font-weight-bold">
+                        <tr>
+                            <td colspan="2" class="text-right">TOTALES:</td>
+                            <td id="total-cantidad" class="text-right">0</td>
+                            <td></td>
+                            <td></td>
+                            <td id="total-descuento-bs" class="text-right">0,00</td>
+                            <td id="total-iva-bs" class="text-right">0,00</td>
+                            <td id="total-general-bs" class="text-right">0,00</td>
+                            <td></td>
+                        </tr>
+                        <tr class="table-active">
+                            <td colspan="8" class="text-right">
+                                <span class="text-muted mr-3">Total USD:</span>
+                                <strong id="total-general-usd">0,00</strong>
+                                &nbsp;&nbsp;|&nbsp;&nbsp;
+                                <span class="text-muted mr-3">IVA USD:</span>
+                                <strong id="total-iva-usd">0,00</strong>
+                            </td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <!-- Observaciones -->
+            <div class="form-group mt-3">
+                <label class="control-label">Observaciones</label>
+                <textarea name="observaciones" class="form-control" rows="2"></textarea>
+            </div>
+        </div>
+        <!-- /.card-body -->
+        <div class="card-footer text-right">
+            <a href="{% url 'facturacion:factura_list' %}" class="btn btn-secondary mr-2">
+                <i class="fas fa-times"></i> Cancelar
+            </a>
+            <button type="submit" class="btn btn-primary" id="btn-guardar">
+                <i class="fas fa-save"></i> Guardar Factura
+            </button>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ====================================================================
+// ESTADO GLOBAL
+// ====================================================================
+var detalles = [];        // Array de objetos { id, producto_id, nombre, cantidad,
+                          //   precio_bs, precio_usd, descuento_bs }
+var nextId = 1;
+var IVA = 0.16;
+
+// ====================================================================
+// FUNCIONES CSRF
+// ====================================================================
+function getCSRFToken() {
+    const name = 'csrftoken';
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const c = cookie.trim();
+        if (c.startsWith(name + '=')) {
+            return decodeURIComponent(c.substring(name.length + 1));
+        }
+    }
+    return '';
+}
+
+// ====================================================================
+// SELECT2 — CLIENTE
+// ====================================================================
+$(document).ready(function() {
+    $('.select2-cliente').select2({
+        theme: 'bootstrap4',
+        width: '100%',
+        placeholder: 'Escriba para buscar cliente…',
+        allowClear: true,
+        ajax: {
+            url: '{% url "facturacion:cliente_search" %}',
+            dataType: 'json',
+            delay: 300,
+            data: function(params) {
+                return { q: params.term };
+            },
+            processResults: function(data) {
+                return { results: data.items };
+            },
+            cache: true
+        },
+        minimumInputLength: 2
+    });
+});
+
+// ====================================================================
+// SELECT2 — PRODUCTO
+// ====================================================================
+$(document).ready(function() {
+    $('.select2-producto').select2({
+        theme: 'bootstrap4',
+        width: '100%',
+        placeholder: 'Buscar producto por código o nombre…',
+        allowClear: true,
+        ajax: {
+            url: '{% url "facturacion:producto_search" %}',
+            dataType: 'json',
+            delay: 300,
+            data: function(params) {
+                return { q: params.term };
+            },
+            processResults: function(data) {
+                return { results: data.items };
+            },
+            cache: true
+        },
+        minimumInputLength: 1
+    }).on('select2:select', function(e) {
+        // Selección automática: enfocar cantidad
+        setTimeout(function() {
+            document.getElementById('id_cantidad_agregar').focus();
+        }, 200);
+    });
+});
+
+// ====================================================================
+// AGREGAR PRODUCTO A LA TABLA
+// ====================================================================
+function agregarProducto() {
+    var select2 = $('.select2-producto');
+    var data = select2.select2('data');
+
+    if (!data || !data[0] || !data[0].id) {
+        mostrarAlerta('Advertencia', 'Seleccione un producto.', 'warning');
+        return;
+    }
+
+    var producto = data[0];
+    var cantidad = parseInt(document.getElementById('id_cantidad_agregar').value) || 1;
+    if (cantidad < 1) cantidad = 1;
+
+    // Validar stock
+    if (!producto.permite_stock_negativo && cantidad > producto.stock_actual) {
+        mostrarAlerta('Stock Insuficiente',
+            'Stock disponible: ' + producto.stock_actual + '. Solicitado: ' + cantidad,
+            'danger');
+        return;
+    }
+
+    // Agregar al array
+    var item = {
+        id: nextId++,
+        producto_id: producto.id,
+        nombre: producto.text,
+        cantidad: cantidad,
+        precio_bs: parseFloat(producto.precio_bs) || 0,
+        precio_usd: parseFloat(producto.precio_usd) || 0,
+        descuento_bs: 0
+    };
+    detalles.push(item);
+
+    // Limpiar Select2 y cantidad
+    select2.val(null).trigger('change');
+    document.getElementById('id_cantidad_agregar').value = 1;
+
+    renderizarTabla();
+    calcularTotales();
+    mostrarAlerta('Éxito', 'Producto agregado a la factura.', 'success');
+}
+
+// ====================================================================
+// RENDERIZAR TABLA
+// ====================================================================
+function renderizarTabla() {
+    var tbody = document.getElementById('detalles-body');
+    tbody.innerHTML = '';
+    var tasa = parseFloat(document.getElementById('id_tasa_cambio').value) || 1;
+
+    detalles.forEach(function(item, index) {
+        var subtotal = item.cantidad * item.precio_bs;
+        var baseImponible = subtotal - item.descuento_bs;
+        var iva = baseImponible * IVA;
+        var totalLinea = baseImponible + iva;
+
+        var tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="display:none;">${item.producto_id}</td>
+            <td>${item.nombre}</td>
+            <td class="text-right">
+                <input type="number" class="form-control form-control-sm text-right cant-input"
+                       value="${item.cantidad}" min="1" data-index="${index}"
+                       style="width:80px;display:inline;">
+            </td>
+            <td class="text-right">${formatearNumero(item.precio_bs)}</td>
+            <td class="text-right">${formatearNumero(item.precio_bs / tasa)}</td>
+            <td class="text-right">
+                <input type="number" class="form-control form-control-sm text-right desc-input"
+                       value="${item.descuento_bs}" min="0" step="0.01" data-index="${index}"
+                       style="width:100px;display:inline;">
+            </td>
+            <td class="text-right">${formatearNumero(iva)}</td>
+            <td class="text-right font-weight-bold">${formatearNumero(totalLinea)}</td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-danger" onclick="eliminarDetalle(${item.id})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // Eventos para cantidad
+    document.querySelectorAll('.cant-input').forEach(function(input) {
+        input.addEventListener('change', function() {
+            var idx = parseInt(this.dataset.index);
+            var val = parseInt(this.value) || 1;
+            if (val < 1) val = 1;
+
+            // Validar stock
+            var item = detalles[idx];
+            if (!item.permite_stock_negativo && val > item.stock_max) {
+                mostrarAlerta('Stock Insuficiente', 'Stock disponible: ' + item.stock_max, 'warning');
+                this.value = item.cantidad;
+                return;
+            }
+
+            detalles[idx].cantidad = val;
+            renderizarTabla();
+            calcularTotales();
+        });
+    });
+
+    // Eventos para descuento
+    document.querySelectorAll('.desc-input').forEach(function(input) {
+        input.addEventListener('change', function() {
+            var idx = parseInt(this.dataset.index);
+            var val = parseFloat(this.value) || 0;
+            if (val < 0) val = 0;
+
+            var item = detalles[idx];
+            var subtotal = item.cantidad * item.precio_bs;
+            var descMax = subtotal * 0.20;
+
+            if (val > descMax) {
+                mostrarAlerta('Límite de Descuento',
+                    'El descuento máximo por línea es 20% (máx: ' + formatearNumero(descMax) + ' Bs).',
+                    'warning');
+                val = Math.min(val, descMax);
+                this.value = val.toFixed(2);
+            }
+
+            detalles[idx].descuento_bs = val;
+            renderizarTabla();
+            calcularTotales();
+        });
+    });
+}
+
+// ====================================================================
+// CALCULAR TOTALES
+// ====================================================================
+function calcularTotales() {
+    var tasa = parseFloat(document.getElementById('id_tasa_cambio').value) || 1;
+    if (tasa <= 0) tasa = 1;
+
+    var totalCantidad = 0;
+    var totalSubBs = 0;
+    var totalDescBs = 0;
+    var totalIvaBs = 0;
+    var totalGeneralBs = 0;
+
+    detalles.forEach(function(item) {
+        var sub = item.cantidad * item.precio_bs;
+        var desc = item.descuento_bs || 0;
+        var baseImp = sub - desc;
+        var iva = baseImp * IVA;
+        var totalLinea = baseImp + iva;
+
+        totalCantidad += item.cantidad;
+        totalSubBs += sub;
+        totalDescBs += desc;
+        totalIvaBs += iva;
+        totalGeneralBs += totalLinea;
+    });
+
+    var totalGeneralUsd = totalGeneralBs / tasa;
+    var totalIvaUsd = totalIvaBs / tasa;
+
+    document.getElementById('total-cantidad').textContent = totalCantidad;
+    document.getElementById('total-descuento-bs').textContent = formatearNumero(totalDescBs);
+    document.getElementById('total-iva-bs').textContent = formatearNumero(totalIvaBs);
+    document.getElementById('total-general-bs').textContent = formatearNumero(totalGeneralBs);
+    document.getElementById('total-general-usd').textContent = formatearNumero(totalGeneralUsd);
+    document.getElementById('total-iva-usd').textContent = formatearNumero(totalIvaUsd);
+}
+
+// ====================================================================
+// ELIMINAR DETALLE
+// ====================================================================
+function eliminarDetalle(id) {
+    if (!confirm('¿Eliminar esta línea de la factura?')) return;
+    detalles = detalles.filter(function(item) { return item.id !== id; });
+    renderizarTabla();
+    calcularTotales();
+}
+
+// ====================================================================
+// LIMPIAR TODO
+// ====================================================================
+function limpiarDetalles() {
+    if (detalles.length === 0) return;
+    if (!confirm('¿Limpiar todos los productos de la factura?')) return;
+    detalles = [];
+    renderizarTabla();
+    calcularTotales();
+}
+
+// ====================================================================
+// FORMATEAR NÚMEROS
+// ====================================================================
+function formatearNumero(valor) {
+    return Number(valor).toLocaleString('es-VE', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+function formatearNumeroPunto(valor) {
+    return Number(valor).toFixed(2);
+}
+
+// ====================================================================
+// MOSTRAR ALERTA (Bootstrap 4)
+// ====================================================================
+function mostrarAlerta(titulo, mensaje, tipo) {
+    var container = document.getElementById('alert-container');
+    var icon = {
+        'success': 'fa-check-circle',
+        'danger': 'fa-exclamation-circle',
+        'warning': 'fa-exclamation-triangle',
+        'info': 'fa-info-circle'
+    }[tipo] || 'fa-info-circle';
+
+    var alerta = document.createElement('div');
+    alerta.className = 'alert alert-' + tipo + ' alert-dismissible fade show';
+    alerta.innerHTML = `
+        <i class="fas ${icon} mr-2"></i>
+        <strong>${titulo}:</strong> ${mensaje}
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    `;
+    container.appendChild(alerta);
+
+    setTimeout(function() {
+        alerta.classList.remove('show');
+        setTimeout(function() { alerta.remove(); }, 300);
+    }, 4000);
+}
+
+// ====================================================================
+// ENVÍO DEL FORMULARIO
+// ====================================================================
+$(document).ready(function() {
+    // Actualizar precios USD cuando cambie la tasa de cambio
+    $('#id_tasa_cambio').on('input change', function() {
+        renderizarTabla();
+        calcularTotales();
+    });
+
+    $('#factura-form').on('submit', function(e) {
+        e.preventDefault();
+
+        // Validar campos requeridos
+        var clienteId = $('#id_cliente').val();
+        var tasaCambio = $('#id_tasa_cambio').val();
+
+        if (!clienteId) {
+            mostrarAlerta('Error', 'Debe seleccionar un cliente.', 'danger');
+            return;
+        }
+        if (!tasaCambio || parseFloat(tasaCambio) <= 0) {
+            mostrarAlerta('Error', 'Debe ingresar una tasa de cambio válida.', 'danger');
+            return;
+        }
+        if (detalles.length === 0) {
+            mostrarAlerta('Error', 'Debe agregar al menos un producto.', 'danger');
+            return;
+        }
+
+        // Construir payload
+        var payload = {
+            cliente: clienteId,
+            tasa_cambio: tasaCambio,
+            moneda_principal: $('#id_moneda_principal').val(),
+            tipo_documento: $('select[name="tipo_documento"]').val(),
+            observaciones: $('textarea[name="observaciones"]').val(),
+            detalles: detalles.map(function(item) {
+                var sub = item.cantidad * item.precio_bs;
+                var desc = item.descuento_bs || 0;
+                var baseImp = sub - desc;
+                var iva = baseImp * IVA;
+                var totalLinea = baseImp + iva;
+                return {
+                    producto_id: item.producto_id,
+                    cantidad: item.cantidad,
+                    precio_unitario_bs: formatearNumeroPunto(item.precio_bs),
+                    precio_unitario_usd: formatearNumeroPunto(item.precio_usd),
+                    descuento_bs: formatearNumeroPunto(desc),
+                    subtotal_bs: formatearNumeroPunto(sub),
+                    subtotal_usd: formatearNumeroPunto(sub / parseFloat(tasaCambio)),
+                    monto_iva_bs: formatearNumeroPunto(iva),
+                    monto_iva_usd: formatearNumeroPunto(iva / parseFloat(tasaCambio)),
+                    total_bs: formatearNumeroPunto(totalLinea),
+                    total_usd: formatearNumeroPunto(totalLinea / parseFloat(tasaCambio))
+                };
+            })
+        };
+
+        // Deshabilitar botón
+        $('#btn-guardar').prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Guardando…');
+
+        // Enviar
+        $.ajax({
+            url: '{% url "facturacion:factura_create" %}',
+            method: 'POST',
+            data: JSON.stringify(payload),
+            contentType: 'application/json',
+            headers: { 'X-CSRFToken': getCSRFToken() },
+            success: function(response) {
+                if (response.success) {
+                    if (confirm('Factura guardada correctamente.\n¿Desea imprimir la boleta?')) {
+                        window.open(response.redirect_url + 'pdf/', '_blank');
+                    }
+                    window.location.href = response.redirect_url;
+                } else {
+                    mostrarAlerta('Error', response.error || 'Error al guardar la factura.', 'danger');
+                    $('#btn-guardar').prop('disabled', false).html('<i class="fas fa-save"></i> Guardar Factura');
+                }
+            },
+            error: function(xhr) {
+                var msg = 'Error al guardar la factura.';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    msg = xhr.responseJSON.error;
+                }
+                mostrarAlerta('Error', msg, 'danger');
+                $('#btn-guardar').prop('disabled', false).html('<i class="fas fa-save"></i> Guardar Factura');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

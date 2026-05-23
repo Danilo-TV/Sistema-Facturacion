@@ -1,0 +1,107 @@
+{% extends 'facturacion/base.html' %}
+{% block title %}Factura {{ factura.numero_factura }} — Facturación{% endblock %}
+{% block page_title %}Factura {{ factura.numero_factura }}{% endblock %}
+{% block content %}
+<div class="row mb-3">
+    <div class="col">
+        <a href="{% url 'facturacion:factura_list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Volver
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0">
+            <i class="fas fa-file-invoice mr-2"></i>Factura {{ factura.numero_factura }}
+        </h4>
+        <span class="badge fs-6
+            {% if factura.estatus == 'pagada' %}bg-success
+            {% elif factura.estatus == 'borrador' %}bg-warning text-dark
+            {% else %}bg-danger{% endif %}">
+            {{ factura.get_estatus_display }}
+        </span>
+    </div>
+    <div class="card-body">
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h6 class="text-muted mb-1">Cliente</h6>
+                <p class="mb-0"><strong>{{ factura.cliente.nombre_razon_social }}</strong></p>
+                <p class="mb-0">{{ factura.cliente.get_tipo_documento_display }}: {{ factura.cliente.numero_documento }}</p>
+                {% if factura.cliente.telefono %}<p class="mb-0">{{ factura.cliente.telefono }}</p>{% endif %}
+            </div>
+            <div class="col-md-6 text-md-right">
+                <h6 class="text-muted mb-1">Datos de la Factura</h6>
+                <p class="mb-0"><strong>Emisión:</strong> {{ factura.fecha_emision|date:'d/m/Y H:i' }}</p>
+                <p class="mb-0"><strong>Tipo:</strong> {{ factura.get_tipo_documento_display }}</p>
+                <p class="mb-0"><strong>Tasa Cambio:</strong> {{ factura.tasa_cambio|floatformat:4 }}</p>
+                <p class="mb-0"><strong>Moneda Principal:</strong> {{ factura.get_moneda_principal_display }}</p>
+                {% if factura.numero_control %}
+                <p class="mb-0"><strong>N° Control:</strong> {{ factura.numero_control }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Producto</th>
+                        <th class="text-right">Cant.</th>
+                        <th class="text-right">Precio Bs</th>
+                        <th class="text-right">Precio USD</th>
+                        <th class="text-right">Subtotal Bs</th>
+                        <th class="text-right">Subtotal USD</th>
+                        <th class="text-right">IVA Bs</th>
+                        <th class="text-right">IVA USD</th>
+                        <th class="text-right">Total Bs</th>
+                        <th class="text-right">Total USD</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in factura.detalles.all %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ d.producto.nombre }}</td>
+                        <td class="text-right">{{ d.cantidad }}</td>
+                        <td class="text-right">{{ d.precio_unitario_bs|floatformat:2 }}</td>
+                        <td class="text-right">{{ d.precio_unitario_usd|floatformat:2 }}</td>
+                        <td class="text-right">{{ d.subtotal_bs|floatformat:2 }}</td>
+                        <td class="text-right">{{ d.subtotal_usd|floatformat:2 }}</td>
+                        <td class="text-right">{{ d.monto_iva_bs|floatformat:2 }}</td>
+                        <td class="text-right">{{ d.monto_iva_usd|floatformat:2 }}</td>
+                        <td class="text-right">{{ d.total_bs|floatformat:2 }}</td>
+                        <td class="text-right">{{ d.total_usd|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-active font-weight-bold">
+                    <tr>
+                        <td colspan="5" class="text-right">Totales:</td>
+                        <td class="text-right">{{ factura.subtotal_bs|floatformat:2 }}</td>
+                        <td class="text-right">{{ factura.subtotal_usd|floatformat:2 }}</td>
+                        <td class="text-right">{{ factura.monto_iva_bs|floatformat:2 }}</td>
+                        <td class="text-right">{{ factura.monto_iva_usd|floatformat:2 }}</td>
+                        <td class="text-right">{{ factura.total_bs|floatformat:2 }}</td>
+                        <td class="text-right">{{ factura.total_usd|floatformat:2 }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        {% if factura.observaciones %}
+        <div class="mt-3">
+            <h6 class="text-muted">Observaciones</h6>
+            <p>{{ factura.observaciones }}</p>
+        </div>
+        {% endif %}
+
+        <div class="mt-3 d-print-none">
+            <button class="btn btn-outline-primary" onclick="window.print()">
+                <i class="fas fa-print"></i> Imprimir
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}

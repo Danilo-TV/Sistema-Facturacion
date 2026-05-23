@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Factura {{ factura.numero_factura }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <style>
+        /* ===== PAGE ===== */
+        @page {
+            size: letter;
+            margin: 1.8cm 1.5cm 1.5cm 1.5cm;
+        }
+
+        /* ===== BASE ===== */
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 9.5pt;
+            color: #212529;
+            line-height: 1.5;
+        }
+
+        /* ===== HEADER ===== */
+        .invoice-header {
+            border-bottom: 3px solid #1e3a5f;
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .invoice-header .brand-name {
+            font-size: 18pt;
+            font-weight: 700;
+            color: #1e3a5f;
+            letter-spacing: 0.5px;
+        }
+        .invoice-header .brand-tagline {
+            font-size: 8pt;
+            color: #6c757d;
+        }
+        .invoice-header .invoice-badge {
+            display: inline-block;
+            background-color: #1e3a5f;
+            color: #fff;
+            font-size: 7pt;
+            font-weight: 600;
+            letter-spacing: 1px;
+            padding: 0.2rem 1rem;
+            border-radius: 2px;
+        }
+
+        /* ===== SECTION TITLE ===== */
+        .section-title {
+            font-size: 8.5pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #1e3a5f;
+            margin-bottom: 0.5rem;
+        }
+
+        /* ===== INFO BLOCKS ===== */
+        .info-table td {
+            padding: 0.15rem 0.5rem 0.15rem 0;
+            font-size: 9pt;
+            border: none;
+            vertical-align: top;
+        }
+        .info-table td:first-child {
+            font-weight: 600;
+            color: #495057;
+            white-space: nowrap;
+            width: 1px;
+            padding-right: 1rem;
+        }
+
+        /* ===== PRODUCT TABLE ===== */
+        .table-products {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0.5rem;
+        }
+        .table-products thead th {
+            background-color: #1e3a5f !important;
+            color: #fff;
+            font-size: 8pt;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 0.5rem 0.4rem;
+            border: none;
+            text-align: center;
+            vertical-align: middle;
+        }
+        .table-products tbody td {
+            padding: 0.4rem;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 9pt;
+            vertical-align: middle;
+        }
+        .table-products tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        .table-products tbody tr:last-child td {
+            border-bottom: 2px solid #1e3a5f;
+        }
+
+        /* ===== TOTALS ===== */
+        .totals-box {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 3px;
+            padding: 0.8rem 1rem;
+        }
+        .totals-box table td {
+            padding: 0.2rem 0.3rem;
+            font-size: 9pt;
+            border: none;
+        }
+        .totals-box .grand-total td {
+            border-top: 2px solid #1e3a5f;
+            font-size: 10.5pt;
+            font-weight: 700;
+            color: #1e3a5f;
+            padding-top: 0.4rem;
+        }
+        .totals-box .divider-row td {
+            padding: 0;
+        }
+        .totals-box .divider-row hr {
+            margin: 0.4rem 0;
+            border-top: 1px solid #dee2e6;
+        }
+
+        /* ===== OBSERVACIONES ===== */
+        .obs-box {
+            border-left: 3px solid #1e3a5f;
+            padding-left: 0.8rem;
+            margin-top: 0.5rem;
+        }
+        .obs-box p {
+            font-size: 8.5pt;
+            color: #6c757d;
+            margin-bottom: 0;
+        }
+
+        /* ===== FOOTER ===== */
+        .invoice-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 7.5pt;
+            color: #adb5bd;
+            border-top: 1px solid #e9ecef;
+            padding-top: 0.4rem;
+        }
+
+        /* ===== UTILITIES ===== */
+        .text-muted-corp { color: #6c757d; }
+    </style>
+</head>
+<body>
+
+    <!-- ===== HEADER ===== -->
+    <div class="invoice-header">
+        <div class="row">
+            <div class="col-8">
+                <div class="brand-name">SISTEMA DE FACTURACIÓN</div>
+                <div class="brand-tagline">
+                    RIF J-12345678-0 &nbsp;|&nbsp; Av. Principal, Caracas &nbsp;|&nbsp; +58 212-555-0100
+                </div>
+            </div>
+            <div class="col-4 text-right">
+                <div class="invoice-badge">{{ factura.get_estatus_display|upper }}</div>
+                <div style="font-size:14pt; font-weight:700; color:#1e3a5f; margin-top:0.3rem;">
+                    {{ factura.numero_factura }}
+                </div>
+                <div style="font-size:7.5pt; color:#6c757d;">
+                    {{ factura.fecha_emision|date:'d/m/Y H:i' }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== CLIENTE + DATOS FACTURA ===== -->
+    <div class="row mb-3">
+        <div class="col-7">
+            <div class="section-title">Cliente</div>
+            <table class="info-table">
+                <tr><td>Razón Social:</td><td>{{ cliente.nombre_razon_social }}</td></tr>
+                <tr><td>{{ cliente.get_tipo_documento_display }}:</td><td>{{ cliente.numero_documento }}</td></tr>
+                {% if cliente.direccion %}
+                <tr><td>Dirección:</td><td>{{ cliente.direccion }}</td></tr>
+                {% endif %}
+                {% if cliente.telefono %}
+                <tr><td>Teléfono:</td><td>{{ cliente.telefono }}</td></tr>
+                {% endif %}
+            </table>
+        </div>
+        <div class="col-5">
+            <div class="section-title">Datos de la Factura</div>
+            <table class="info-table">
+                <tr><td>Tipo:</td><td>{{ factura.get_tipo_documento_display }}</td></tr>
+                <tr><td>Tasa Cambio:</td><td>{{ factura.tasa_cambio|floatformat:4 }} Bs/USD</td></tr>
+                <tr><td>Moneda Ppal:</td><td>{{ factura.get_moneda_principal_display }}</td></tr>
+                {% if factura.numero_control %}
+                <tr><td>N° Control:</td><td>{{ factura.numero_control }}</td></tr>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+
+    <!-- ===== TABLA DE PRODUCTOS ===== -->
+    <div class="section-title">Detalle de la Venta</div>
+    <table class="table-products">
+        <thead>
+            <tr>
+                <th style="width:5%;">#</th>
+                <th style="width:30%;">Producto</th>
+                <th style="width:7%;">Cant.</th>
+                <th style="width:12%;">Precio Bs</th>
+                <th style="width:12%;">Precio USD</th>
+                <th style="width:11%;">Subtotal Bs</th>
+                <th style="width:11%;">IVA 16% Bs</th>
+                <th style="width:12%;">Total Bs</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in detalles %}
+            <tr>
+                <td class="text-center">{{ forloop.counter }}</td>
+                <td>{{ d.producto.nombre }}</td>
+                <td class="text-center">{{ d.cantidad }}</td>
+                <td class="text-right">{{ d.precio_unitario_bs|floatformat:2 }}</td>
+                <td class="text-right">{{ d.precio_unitario_usd|floatformat:2 }}</td>
+                <td class="text-right">{{ d.subtotal_bs|floatformat:2 }}</td>
+                <td class="text-right">{{ d.monto_iva_bs|floatformat:2 }}</td>
+                <td class="text-right">{{ d.total_bs|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="text-center text-muted-corp py-3">
+                    No hay productos en esta factura.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- ===== TOTALES + OBSERVACIONES ===== -->
+    <div class="row mt-3">
+        <div class="col-7">
+            {% if factura.observaciones %}
+            <div class="obs-box">
+                <strong style="font-size:8pt; color:#1e3a5f;">OBSERVACIONES</strong>
+                <p>{{ factura.observaciones }}</p>
+            </div>
+            {% endif %}
+            <div style="margin-top:1rem; font-size:7.5pt; color:#adb5bd;">
+                <em>Generado por: {{ usuario.get_full_name|default:usuario.username }}</em>
+                <br>
+                <em>Documento electrónico con validez legal — SENIAT</em>
+            </div>
+        </div>
+        <div class="col-5">
+            <div class="totals-box">
+                <table style="width:100%;">
+                    <tr>
+                        <td>Subtotal Bs</td>
+                        <td class="text-right">{{ factura.subtotal_bs|floatformat:2 }}</td>
+                    </tr>
+                    {% if factura.descuento_bs > 0 %}
+                    <tr>
+                        <td>Descuento Bs</td>
+                        <td class="text-right text-danger">({{ factura.descuento_bs|floatformat:2 }})</td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <td>IVA 16% Bs</td>
+                        <td class="text-right">{{ factura.monto_iva_bs|floatformat:2 }}</td>
+                    </tr>
+                    <tr class="grand-total">
+                        <td>TOTAL Bs</td>
+                        <td class="text-right">{{ factura.total_bs|floatformat:2 }}</td>
+                    </tr>
+                    <tr class="divider-row"><td colspan="2"><hr></td></tr>
+                    <tr>
+                        <td>Subtotal USD</td>
+                        <td class="text-right">{{ factura.subtotal_usd|floatformat:2 }}</td>
+                    </tr>
+                    <tr>
+                        <td>IVA 16% USD</td>
+                        <td class="text-right">{{ factura.monto_iva_usd|floatformat:2 }}</td>
+                    </tr>
+                    <tr class="grand-total">
+                        <td>TOTAL USD</td>
+                        <td class="text-right">{{ factura.total_usd|floatformat:2 }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="invoice-footer">
+        Documento generado electrónicamente
+    </div>
+
+</body>
+</html>

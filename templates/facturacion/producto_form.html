@@ -1,0 +1,107 @@
+{% extends 'facturacion/base.html' %}
+{% block title %}{{ titulo }} — Facturación{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="fas fa-{{ icono }} mr-2"></i>{{ titulo }}</h4>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="control-label">Código *</label>
+                                <input type="text" name="codigo" class="form-control" value="{{ form.codigo.value|default:'' }}" required maxlength="50">
+                                {% if form.codigo.errors %}<div class="text-danger small">{{ form.codigo.errors.0 }}</div>{% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="control-label">Nombre *</label>
+                                <input type="text" name="nombre" class="form-control" value="{{ form.nombre.value|default:'' }}" required maxlength="200">
+                                {% if form.nombre.errors %}<div class="text-danger small">{{ form.nombre.errors.0 }}</div>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label">Descripción</label>
+                        <textarea name="descripcion" class="form-control" rows="2">{{ form.descripcion.value|default:'' }}</textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="control-label">Categoría *</label>
+                                <select name="categoria" class="form-control" required>
+                                    <option value="">— Seleccione —</option>
+                                    {% for cat in categorias %}
+                                    <option value="{{ cat.pk }}" {% if form.categoria.value|stringformat:"s" == cat.pk|stringformat:"s" %}selected{% endif %}>
+                                        {{ cat.nombre }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                {% if form.categoria.errors %}<div class="text-danger small">{{ form.categoria.errors.0 }}</div>{% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="control-label">Precio Bs *</label>
+                                <input type="number" name="precio_bs" class="form-control" value="{{ form.precio_bs.value|default:'' }}" required step="0.01" min="0">
+                                {% if form.precio_bs.errors %}<div class="text-danger small">{{ form.precio_bs.errors.0 }}</div>{% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="control-label">Precio USD *</label>
+                                <input type="number" name="precio_usd" class="form-control" value="{{ form.precio_usd.value|default:'' }}" required step="0.01" min="0">
+                                {% if form.precio_usd.errors %}<div class="text-danger small">{{ form.precio_usd.errors.0 }}</div>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="control-label">Stock Actual</label>
+                                <input type="number" name="stock_actual" class="form-control" value="{{ form.stock_actual.value|default:'0' }}" min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="control-label">Stock Mínimo</label>
+                                <input type="number" name="stock_minimo" class="form-control" value="{{ form.stock_minimo.value|default:'0' }}" min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="control-label">Costo Bs</label>
+                                <input type="number" name="costo_bs" class="form-control" value="{{ form.costo_bs.value|default:'0' }}" step="0.01" min="0">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input type="checkbox" name="permite_stock_negativo" class="form-check-input" id="id_permite_stock" {% if form.permite_stock_negativo.value %}checked{% endif %}>
+                            <label class="form-check-label" for="id_permite_stock">Permitir stock negativo</label>
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" name="is_active" class="form-check-input" id="id_is_active" {% if form.is_active.value or not form.is_active.value and not form.instance.pk %}checked{% endif %}>
+                            <label class="form-check-label" for="id_is_active">Activo</label>
+                        </div>
+                    </div>
+                    <div class="mt-4 d-flex justify-content-between">
+                        <a href="{% url 'facturacion:producto_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Guardar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

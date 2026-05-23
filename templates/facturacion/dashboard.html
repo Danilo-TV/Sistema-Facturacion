@@ -1,0 +1,251 @@
+{% extends 'facturacion/base.html' %}
+{% block title %}Dashboard — Facturación{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- ===== STAT CARDS ===== -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card bg-primary text-white shadow-sm">
+            <div class="card-body text-center py-4">
+                <i class="fas fa-boxes fa-3x mb-2"></i>
+                <h5 class="card-title">{{ total_productos }}</h5>
+                <p class="card-text">Productos Activos</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-success text-white shadow-sm">
+            <div class="card-body text-center py-4">
+                <i class="fas fa-users fa-3x mb-2"></i>
+                <h5 class="card-title">{{ total_clientes }}</h5>
+                <p class="card-text">Clientes Activos</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-info text-white shadow-sm">
+            <div class="card-body text-center py-4">
+                <i class="fas fa-file-invoice fa-3x mb-2"></i>
+                <h5 class="card-title">{{ total_facturas }}</h5>
+                <p class="card-text">Facturas Emitidas</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-warning text-white shadow-sm">
+            <div class="card-body text-center py-4">
+                <i class="fas fa-exclamation-triangle fa-3x mb-2"></i>
+                <h5 class="card-title">{{ productos_stajo_bajo }}</h5>
+                <p class="card-text">Stock Bajo</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== GRÁFICOS INTERACTIVOS (Highcharts) ===== -->
+<div class="row mb-4">
+    <div class="col-lg-8 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-bar mr-2"></i>Ventas Mensuales (Bs)</h5>
+            </div>
+            <div class="card-body">
+                <div id="chart-ventas-mensuales" style="height:320px;"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-pie mr-2"></i>Top Productos</h5>
+            </div>
+            <div class="card-body">
+                <div id="chart-top-productos" style="height:320px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== ÚLTIMAS FACTURAS + ACCIONES ===== -->
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-clock mr-2"></i>Últimas Facturas</h5>
+                <a href="{% url 'facturacion:factura_create' %}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-plus"></i> Nueva
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Cliente</th>
+                                <th>Fecha</th>
+                                <th class="text-right">Total Bs</th>
+                                <th>Estatus</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for f in ultimas_facturas %}
+                            <tr>
+                                <td><strong>{{ f.numero_factura }}</strong></td>
+                                <td>{{ f.cliente.nombre_razon_social }}</td>
+                                <td>{{ f.fecha_emision|date:'d/m/Y H:i' }}</td>
+                                <td class="text-right">{{ f.total_bs|floatformat:2 }}</td>
+                                <td>
+                                    {% if f.estatus == 'pagada' %}
+                                        <span class="badge bg-success">Pagada</span>
+                                    {% elif f.estatus == 'borrador' %}
+                                        <span class="badge bg-warning text-dark">Borrador</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Cancelada</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">
+                                    No hay facturas aún.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-cog mr-2"></i>Acciones Rápidas</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'facturacion:factura_create' %}" class="btn btn-primary">
+                        <i class="fas fa-file-invoice"></i> Nueva Factura
+                    </a>
+                    <a href="{% url 'facturacion:producto_create' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-box"></i> Nuevo Producto
+                    </a>
+                    <a href="{% url 'facturacion:cliente_create' %}" class="btn btn-outline-success">
+                        <i class="fas fa-user-plus"></i> Nuevo Cliente
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Highcharts (cargar antes de inicializar los gráficos) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highcharts/11.4.8/highcharts.min.js"></script>
+<script>
+// ====================================================================
+// Cargar datos del dashboard vía AJAX y renderizar Highcharts
+// ====================================================================
+$(document).ready(function() {
+
+    // Verificar que Highcharts esté disponible
+    if (typeof Highcharts === 'undefined') {
+        $('#chart-ventas-mensuales').html(
+            '<div class="alert alert-danger m-3">Highcharts no se cargó. Verificá tu conexión o la CDN.</div>'
+        );
+        $('#chart-top-productos').html(
+            '<div class="alert alert-danger m-3">Highcharts no se cargó.</div>'
+        );
+        return;
+    }
+
+    $.ajax({
+        url: '{% url "facturacion:dashboard_data" %}',
+        method: 'GET',
+        dataType: 'json',
+        headers: { 'X-CSRFToken': csrf_token },
+        success: function(data) {
+            // ---- Gráfico de Barras: Ventas Mensuales ----
+            var categorias = data.monthly_sales.map(function(e) { return e.month; });
+            var valores    = data.monthly_sales.map(function(e) { return e.total; });
+
+            Highcharts.chart('chart-ventas-mensuales', {
+                chart: { type: 'column' },
+                title: { text: null },
+                credits: { enabled: false },
+                accessibility: { enabled: false },
+                xAxis: {
+                    categories: categorias,
+                    type: 'category',
+                    labels: { rotation: -45, style: { fontSize: '9px' } }
+                },
+                yAxis: {
+                    title: { text: 'Total Bs' },
+                    labels: {
+                        formatter: function() {
+                            return this.value.toLocaleString('es-VE', { minimumFractionDigits: 0 });
+                        }
+                    }
+                },
+                tooltip: {
+                    pointFormat: '<b>Bs {point.y:,.2f}</b>'
+                },
+                plotOptions: {
+                    column: {
+                        color: '#0d6efd',
+                        borderWidth: 0,
+                        borderRadius: 3
+                    }
+                },
+                series: [{
+                    name: 'Ventas',
+                    data: valores,
+                    showInLegend: false
+                }]
+            });
+
+            // ---- Gráfico de Pastel: Top Productos ----
+            Highcharts.chart('chart-top-productos', {
+                chart: { type: 'pie' },
+                title: { text: null },
+                credits: { enabled: false },
+                accessibility: { enabled: false },
+                tooltip: {
+                    pointFormat: '<b>{point.percentage:.1f}%</b>'
+                },
+                plotOptions: {
+                    pie: {
+                        allowPointSelect: true,
+                        cursor: 'pointer',
+                        dataLabels: {
+                            enabled: true,
+                            format: '<b>{point.name}</b><br>{point.percentage:.1f}%',
+                            distance: 10,
+                            style: { fontSize: '9px' }
+                        },
+                        showInLegend: true
+                    }
+                },
+                series: [{
+                    name: 'Productos',
+                    colorByPoint: true,
+                    data: data.top_products
+                }]
+            });
+        },
+        error: function(xhr) {
+            $('#chart-ventas-mensuales').html(
+                '<div class="alert alert-warning m-3">Error al cargar los datos del dashboard.</div>'
+            );
+            $('#chart-top-productos').html(
+                '<div class="alert alert-warning m-3">Sin datos de productos.</div>'
+            );
+        }
+    });
+
+});
+</script>
+{% endblock %}
