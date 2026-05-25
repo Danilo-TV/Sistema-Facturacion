@@ -303,7 +303,7 @@ class FacturaPdfView(LoginRequiredMixin, DetailView):
             'usuario': factura.usuario,
         }
         html_string = render_to_string('facturacion/factura_pdf.html', context, request)
-        pdf_file = HTML(string=html_string).write_pdf()
+        pdf_file = HTML(string=html_string).write_pdf(base_url=request.build_absolute_uri())
 
         response = HttpResponse(pdf_file, content_type='application/pdf')
         response['Content-Disposition'] = (
