@@ -177,52 +177,56 @@
 
     <!-- ===== HEADER ===== -->
     <div class="invoice-header">
-        <div style="display: flex; flex-wrap: wrap; width: 100%;">
-            <div style="flex: 0 0 66.666667%; max-width: 66.666667%;">
-                <div class="brand-name">SISTEMA DE FACTURACIÓN</div>
-                <div class="brand-tagline">
-                    RIF J-12345678-0 &nbsp;|&nbsp; Av. Principal, Caracas &nbsp;|&nbsp; +58 212-555-0100
-                </div>
-            </div>
-            <div style="flex: 0 0 33.333333%; max-width: 33.333333%; text-align: right;">
-                <div class="invoice-badge">{{ factura.get_estatus_display|upper }}</div>
-                <div style="font-size:14pt; font-weight:700; color:#1e3a5f; margin-top:0.3rem;">
-                    {{ factura.numero_factura }}
-                </div>
-                <div style="font-size:7.5pt; color:#6c757d;">
-                    {{ factura.fecha_emision|date:'d/m/Y H:i' }}
-                </div>
-            </div>
-        </div>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="table-layout: fixed;">
+            <tr>
+                <td width="66%" style="vertical-align: top;">
+                    <div class="brand-name">SISTEMA DE FACTURACIÓN</div>
+                    <div class="brand-tagline">
+                        RIF J-12345678-0 &nbsp;|&nbsp; Av. Principal, Caracas &nbsp;|&nbsp; +58 212-555-0100
+                    </div>
+                </td>
+                <td width="34%" style="vertical-align: top; text-align: right;">
+                    <div class="invoice-badge">{{ factura.get_estatus_display|upper }}</div>
+                    <div style="font-size:14pt; font-weight:700; color:#1e3a5f; margin-top:0.3rem;">
+                        {{ factura.numero_factura }}
+                    </div>
+                    <div style="font-size:7.5pt; color:#6c757d;">
+                        {{ factura.fecha_emision|date:'d/m/Y H:i' }}
+                    </div>
+                </td>
+            </tr>
+        </table>
     </div>
 
     <!-- ===== CLIENTE + DATOS FACTURA ===== -->
-    <div style="display: flex; flex-wrap: wrap; width: 100%; margin-bottom: 1rem;">
-        <div style="flex: 0 0 58.333333%; max-width: 58.333333%;">
-            <div class="section-title">Cliente</div>
-            <table class="info-table">
-                <tr><td>Razón Social:</td><td>{{ cliente.nombre_razon_social }}</td></tr>
-                <tr><td>{{ cliente.get_tipo_documento_display }}:</td><td>{{ cliente.numero_documento }}</td></tr>
-                {% if cliente.direccion %}
-                <tr><td>Dirección:</td><td>{{ cliente.direccion }}</td></tr>
-                {% endif %}
-                {% if cliente.telefono %}
-                <tr><td>Teléfono:</td><td>{{ cliente.telefono }}</td></tr>
-                {% endif %}
-            </table>
-        </div>
-        <div style="flex: 0 0 41.666667%; max-width: 41.666667%;">
-            <div class="section-title">Datos de la Factura</div>
-            <table class="info-table">
-                <tr><td>Tipo:</td><td>{{ factura.get_tipo_documento_display }}</td></tr>
-                <tr><td>Tasa Cambio:</td><td>{{ factura.tasa_cambio|floatformat:4 }} Bs/USD</td></tr>
-                <tr><td>Moneda Ppal:</td><td>{{ factura.get_moneda_principal_display }}</td></tr>
-                {% if factura.numero_control %}
-                <tr><td>N° Control:</td><td>{{ factura.numero_control }}</td></tr>
-                {% endif %}
-            </table>
-        </div>
-    </div>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 1rem; table-layout: fixed;">
+        <tr>
+            <td width="58%" style="vertical-align: top;">
+                <div class="section-title">Cliente</div>
+                <table class="info-table">
+                    <tr><td>Razón Social:</td><td>{{ cliente.nombre_razon_social }}</td></tr>
+                    <tr><td>{{ cliente.get_tipo_documento_display }}:</td><td>{{ cliente.numero_documento }}</td></tr>
+                    {% if cliente.direccion %}
+                    <tr><td>Dirección:</td><td>{{ cliente.direccion }}</td></tr>
+                    {% endif %}
+                    {% if cliente.telefono %}
+                    <tr><td>Teléfono:</td><td>{{ cliente.telefono }}</td></tr>
+                    {% endif %}
+                </table>
+            </td>
+            <td width="42%" style="vertical-align: top;">
+                <div class="section-title">Datos de la Factura</div>
+                <table class="info-table">
+                    <tr><td>Tipo:</td><td>{{ factura.get_tipo_documento_display }}</td></tr>
+                    <tr><td>Tasa Cambio:</td><td>{{ factura.tasa_cambio|floatformat:4 }} Bs/USD</td></tr>
+                    <tr><td>Moneda Ppal:</td><td>{{ factura.get_moneda_principal_display }}</td></tr>
+                    {% if factura.numero_control %}
+                    <tr><td>N° Control:</td><td>{{ factura.numero_control }}</td></tr>
+                    {% endif %}
+                </table>
+            </td>
+        </tr>
+    </table>
 
     <!-- ===== TABLA DE PRODUCTOS ===== -->
     <div class="section-title">Detalle de la Venta</div>
@@ -262,58 +266,60 @@
     </table>
 
     <!-- ===== TOTALES + OBSERVACIONES ===== -->
-    <div style="display: flex; flex-wrap: wrap; width: 100%; margin-top: 1rem;">
-        <div style="flex: 0 0 58.333333%; max-width: 58.333333%;">
-            {% if factura.observaciones %}
-            <div class="obs-box">
-                <strong style="font-size:8pt; color:#1e3a5f;">OBSERVACIONES</strong>
-                <p>{{ factura.observaciones }}</p>
-            </div>
-            {% endif %}
-            <div style="margin-top:1rem; font-size:7.5pt; color:#adb5bd;">
-                <em>Generado por: {{ usuario.get_full_name|default:usuario.username }}</em>
-                <br>
-                <em>Documento electrónico con validez legal — SENIAT</em>
-            </div>
-        </div>
-        <div style="flex: 0 0 41.666667%; max-width: 41.666667%;">
-            <div class="totals-box">
-                <table style="width:100%;">
-                    <tr>
-                        <td>Subtotal Bs</td>
-                        <td style="text-align: right;">{{ factura.subtotal_bs|floatformat:2 }}</td>
-                    </tr>
-                    {% if factura.descuento_bs > 0 %}
-                    <tr>
-                        <td>Descuento Bs</td>
-                        <td style="text-align: right; color: #dc3545;">({{ factura.descuento_bs|floatformat:2 }})</td>
-                    </tr>
-                    {% endif %}
-                    <tr>
-                        <td>IVA 16% Bs</td>
-                        <td style="text-align: right;">{{ factura.monto_iva_bs|floatformat:2 }}</td>
-                    </tr>
-                    <tr class="grand-total">
-                        <td>TOTAL Bs</td>
-                        <td style="text-align: right;">{{ factura.total_bs|floatformat:2 }}</td>
-                    </tr>
-                    <tr class="divider-row"><td colspan="2"><hr></td></tr>
-                    <tr>
-                        <td>Subtotal USD</td>
-                        <td style="text-align: right;">{{ factura.subtotal_usd|floatformat:2 }}</td>
-                    </tr>
-                    <tr>
-                        <td>IVA 16% USD</td>
-                        <td style="text-align: right;">{{ factura.monto_iva_usd|floatformat:2 }}</td>
-                    </tr>
-                    <tr class="grand-total">
-                        <td>TOTAL USD</td>
-                        <td style="text-align: right;">{{ factura.total_usd|floatformat:2 }}</td>
-                    </tr>
-                </table>
-            </div>
-        </div>
-    </div>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 1rem; table-layout: fixed;">
+        <tr>
+            <td width="58%" style="vertical-align: top;">
+                {% if factura.observaciones %}
+                <div class="obs-box">
+                    <strong style="font-size:8pt; color:#1e3a5f;">OBSERVACIONES</strong>
+                    <p>{{ factura.observaciones }}</p>
+                </div>
+                {% endif %}
+                <div style="margin-top:1rem; font-size:7.5pt; color:#adb5bd;">
+                    <em>Generado por: {{ usuario.get_full_name|default:usuario.username }}</em>
+                    <br>
+                    <em>Documento electrónico con validez legal — SENIAT</em>
+                </div>
+            </td>
+            <td width="42%" style="vertical-align: top;">
+                <div class="totals-box">
+                    <table style="width:100%;">
+                        <tr>
+                            <td>Subtotal Bs</td>
+                            <td style="text-align: right;">{{ factura.subtotal_bs|floatformat:2 }}</td>
+                        </tr>
+                        {% if factura.descuento_bs > 0 %}
+                        <tr>
+                            <td>Descuento Bs</td>
+                            <td style="text-align: right; color: #dc3545;">({{ factura.descuento_bs|floatformat:2 }})</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <td>IVA 16% Bs</td>
+                            <td style="text-align: right;">{{ factura.monto_iva_bs|floatformat:2 }}</td>
+                        </tr>
+                        <tr class="grand-total">
+                            <td>TOTAL Bs</td>
+                            <td style="text-align: right;">{{ factura.total_bs|floatformat:2 }}</td>
+                        </tr>
+                        <tr class="divider-row"><td colspan="2"><hr></td></tr>
+                        <tr>
+                            <td>Subtotal USD</td>
+                            <td style="text-align: right;">{{ factura.subtotal_usd|floatformat:2 }}</td>
+                        </tr>
+                        <tr>
+                            <td>IVA 16% USD</td>
+                            <td style="text-align: right;">{{ factura.monto_iva_usd|floatformat:2 }}</td>
+                        </tr>
+                        <tr class="grand-total">
+                            <td>TOTAL USD</td>
+                            <td style="text-align: right;">{{ factura.total_usd|floatformat:2 }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
 
     <div class="invoice-footer">
         Documento generado electrónicamente
