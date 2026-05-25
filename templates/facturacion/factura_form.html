@@ -169,6 +169,10 @@ var detalles = [];        // Array de objetos { id, producto_id, nombre, cantida
 var nextId = 1;
 var IVA = 0.16;
 
+function getTasaCambio() {
+    return parseFloat(document.getElementById('id_tasa_cambio').value) || 1;
+}
+
 // ====================================================================
 // FUNCIONES CSRF
 // ====================================================================
@@ -290,7 +294,7 @@ function agregarProducto() {
 function renderizarTabla() {
     var tbody = document.getElementById('detalles-body');
     tbody.innerHTML = '';
-    var tasa = parseFloat(document.getElementById('id_tasa_cambio').value) || 1;
+    var tasa = getTasaCambio();
 
     detalles.forEach(function(item, index) {
         var subtotal = item.cantidad * item.precio_bs;
@@ -376,7 +380,7 @@ function renderizarTabla() {
 // CALCULAR TOTALES
 // ====================================================================
 function calcularTotales() {
-    var tasa = parseFloat(document.getElementById('id_tasa_cambio').value) || 1;
+    var tasa = getTasaCambio();
     if (tasa <= 0) tasa = 1;
 
     var totalCantidad = 0;
