@@ -8,7 +8,7 @@
         /* ===== PAGE ===== */
         @page {
             size: letter portrait;
-            margin: 1cm;
+            margin: 0.5cm;
         }
 
         /* ===== BASE ===== */
@@ -102,6 +102,19 @@
             border-bottom: 2px solid #1e3a5f;
         }
 
+        /* ===== TABLE CONTAINMENT ===== */
+        table {
+            width: 100%;
+            table-layout: fixed;
+            font-size: 11px;
+        }
+        th, td {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            text-align: center;
+            padding: 4px !important;
+        }
+
         /* ===== TOTALS ===== */
         .totals-box {
             background-color: #f8f9fa;
@@ -154,6 +167,10 @@
 
         /* ===== UTILITIES ===== */
         .text-muted-corp { color: #6c757d; }
+        .row {
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
     </style>
 </head>
 <body>
