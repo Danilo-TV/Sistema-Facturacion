@@ -411,7 +411,7 @@ class FacturaCreateView(LoginRequiredMixin, TemplateView):
 
             # Tomar precios del producto (snapshot histórico)
             precio_bs = producto.precio_bs
-            precio_usd = producto.precio_usd
+            precio_usd = (precio_bs / tasa_cambio).quantize(Decimal('0.01'))
 
             # Calcular montos (re-calculo del lado del servidor, siempre fuente de verdad)
             descuento_bs = Decimal(str(det.get('descuento_bs', 0)))

@@ -7,8 +7,8 @@
     <style>
         /* ===== PAGE ===== */
         @page {
-            size: letter;
-            margin: 1.8cm 1.5cm 1.5cm 1.5cm;
+            size: letter portrait;
+            margin: 1cm;
         }
 
         /* ===== BASE ===== */
@@ -143,10 +143,8 @@
 
         /* ===== FOOTER ===== */
         .invoice-footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            position: relative;
+            margin-top: 2rem;
             text-align: center;
             font-size: 7.5pt;
             color: #adb5bd;
@@ -162,14 +160,14 @@
 
     <!-- ===== HEADER ===== -->
     <div class="invoice-header">
-        <div class="row">
-            <div class="col-8">
+        <div style="display: flex; flex-wrap: wrap; width: 100%;">
+            <div style="flex: 0 0 66.666667%; max-width: 66.666667%;">
                 <div class="brand-name">SISTEMA DE FACTURACIÓN</div>
                 <div class="brand-tagline">
                     RIF J-12345678-0 &nbsp;|&nbsp; Av. Principal, Caracas &nbsp;|&nbsp; +58 212-555-0100
                 </div>
             </div>
-            <div class="col-4 text-right">
+            <div style="flex: 0 0 33.333333%; max-width: 33.333333%; text-align: right;">
                 <div class="invoice-badge">{{ factura.get_estatus_display|upper }}</div>
                 <div style="font-size:14pt; font-weight:700; color:#1e3a5f; margin-top:0.3rem;">
                     {{ factura.numero_factura }}
@@ -182,8 +180,8 @@
     </div>
 
     <!-- ===== CLIENTE + DATOS FACTURA ===== -->
-    <div class="row mb-3">
-        <div class="col-7">
+    <div style="display: flex; flex-wrap: wrap; width: 100%; margin-bottom: 1rem;">
+        <div style="flex: 0 0 58.333333%; max-width: 58.333333%;">
             <div class="section-title">Cliente</div>
             <table class="info-table">
                 <tr><td>Razón Social:</td><td>{{ cliente.nombre_razon_social }}</td></tr>
@@ -196,7 +194,7 @@
                 {% endif %}
             </table>
         </div>
-        <div class="col-5">
+        <div style="flex: 0 0 41.666667%; max-width: 41.666667%;">
             <div class="section-title">Datos de la Factura</div>
             <table class="info-table">
                 <tr><td>Tipo:</td><td>{{ factura.get_tipo_documento_display }}</td></tr>
@@ -227,18 +225,18 @@
         <tbody>
             {% for d in detalles %}
             <tr>
-                <td class="text-center">{{ forloop.counter }}</td>
+                <td style="text-align: center;">{{ forloop.counter }}</td>
                 <td>{{ d.producto.nombre }}</td>
-                <td class="text-center">{{ d.cantidad }}</td>
-                <td class="text-right">{{ d.precio_unitario_bs|floatformat:2 }}</td>
-                <td class="text-right">{{ d.precio_unitario_usd|floatformat:2 }}</td>
-                <td class="text-right">{{ d.subtotal_bs|floatformat:2 }}</td>
-                <td class="text-right">{{ d.monto_iva_bs|floatformat:2 }}</td>
-                <td class="text-right">{{ d.total_bs|floatformat:2 }}</td>
+                <td style="text-align: center;">{{ d.cantidad }}</td>
+                <td style="text-align: right;">{{ d.precio_unitario_bs|floatformat:2 }}</td>
+                <td style="text-align: right;">{{ d.precio_unitario_usd|floatformat:2 }}</td>
+                <td style="text-align: right;">{{ d.subtotal_bs|floatformat:2 }}</td>
+                <td style="text-align: right;">{{ d.monto_iva_bs|floatformat:2 }}</td>
+                <td style="text-align: right;">{{ d.total_bs|floatformat:2 }}</td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="8" class="text-center text-muted-corp py-3">
+                <td colspan="8" style="text-align: center; color: #6c757d; padding: 1rem 0;">
                     No hay productos en esta factura.
                 </td>
             </tr>
@@ -247,8 +245,8 @@
     </table>
 
     <!-- ===== TOTALES + OBSERVACIONES ===== -->
-    <div class="row mt-3">
-        <div class="col-7">
+    <div style="display: flex; flex-wrap: wrap; width: 100%; margin-top: 1rem;">
+        <div style="flex: 0 0 58.333333%; max-width: 58.333333%;">
             {% if factura.observaciones %}
             <div class="obs-box">
                 <strong style="font-size:8pt; color:#1e3a5f;">OBSERVACIONES</strong>
@@ -261,39 +259,39 @@
                 <em>Documento electrónico con validez legal — SENIAT</em>
             </div>
         </div>
-        <div class="col-5">
+        <div style="flex: 0 0 41.666667%; max-width: 41.666667%;">
             <div class="totals-box">
                 <table style="width:100%;">
                     <tr>
                         <td>Subtotal Bs</td>
-                        <td class="text-right">{{ factura.subtotal_bs|floatformat:2 }}</td>
+                        <td style="text-align: right;">{{ factura.subtotal_bs|floatformat:2 }}</td>
                     </tr>
                     {% if factura.descuento_bs > 0 %}
                     <tr>
                         <td>Descuento Bs</td>
-                        <td class="text-right text-danger">({{ factura.descuento_bs|floatformat:2 }})</td>
+                        <td style="text-align: right; color: #dc3545;">({{ factura.descuento_bs|floatformat:2 }})</td>
                     </tr>
                     {% endif %}
                     <tr>
                         <td>IVA 16% Bs</td>
-                        <td class="text-right">{{ factura.monto_iva_bs|floatformat:2 }}</td>
+                        <td style="text-align: right;">{{ factura.monto_iva_bs|floatformat:2 }}</td>
                     </tr>
                     <tr class="grand-total">
                         <td>TOTAL Bs</td>
-                        <td class="text-right">{{ factura.total_bs|floatformat:2 }}</td>
+                        <td style="text-align: right;">{{ factura.total_bs|floatformat:2 }}</td>
                     </tr>
                     <tr class="divider-row"><td colspan="2"><hr></td></tr>
                     <tr>
                         <td>Subtotal USD</td>
-                        <td class="text-right">{{ factura.subtotal_usd|floatformat:2 }}</td>
+                        <td style="text-align: right;">{{ factura.subtotal_usd|floatformat:2 }}</td>
                     </tr>
                     <tr>
                         <td>IVA 16% USD</td>
-                        <td class="text-right">{{ factura.monto_iva_usd|floatformat:2 }}</td>
+                        <td style="text-align: right;">{{ factura.monto_iva_usd|floatformat:2 }}</td>
                     </tr>
                     <tr class="grand-total">
                         <td>TOTAL USD</td>
-                        <td class="text-right">{{ factura.total_usd|floatformat:2 }}</td>
+                        <td style="text-align: right;">{{ factura.total_usd|floatformat:2 }}</td>
                     </tr>
                 </table>
             </div>
