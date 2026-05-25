@@ -633,3 +633,41 @@ class DashboardDataAJAXView(LoginRequiredMixin, View):
             'monthly_sales': monthly_sales,
             'top_products': top_products,
         })
+
+
+# ======================================================================
+# REPORTES
+# ======================================================================
+
+class ReportSaleView(LoginRequiredMixin, TemplateView):
+    template_name = 'facturacion/report.html'
+
+    def post(self, request, *args, **kwargs):
+        action = request.POST.get('action')
+
+        if action == 'search_report':
+            start_date = request.POST.get('start_date')
+            end_date = request.POST.get('end_date')
+
+            # Filter pagadas only by default
+            queryset = CabeceraFactura.objects.filter(
+                estatus='pagada',
+                fecha_emision__date__gte=start_date,
+                fecha_emision__date__lte=end_date,
+            ).select_related('cliente')
+
+            data = []
+            for f in queryset:
+                data.append({
+                    'numero': f.numero_factura,
+                    'fecha': f.fecha_emision.strftime('%d/%m/%Y'),
+                    'cliente': f.cliente.nombre_razon_social,
+                    'tipo': f.get_tipo_documento_display(),
+                    'total_bs': float(f.total_bs),
+                    'total_usd': float(f.total_usd),
+                    'estatus': f.get_estatus_display(),
+                })
+
+            return JsonResponse({'data': data}, safe=False)
+
+        return JsonResponse({'error': 'Acción no válida'}, status=400)

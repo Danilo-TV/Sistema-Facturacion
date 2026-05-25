@@ -34,6 +34,9 @@ urlpatterns = [
     path('api/clientes/search/', views.ClienteSearchAJAXView.as_view(), name='cliente_search'),
     path('api/productos/search/', views.ProductoSearchAJAXView.as_view(), name='producto_search'),
 
+    # Reportes
+    path('reportes/', views.ReportSaleView.as_view(), name='report_sale'),
+
     # AJAX — Dashboard
     path('api/dashboard/data/', views.DashboardDataAJAXView.as_view(), name='dashboard_data'),
 ]
