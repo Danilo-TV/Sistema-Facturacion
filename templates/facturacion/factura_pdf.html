@@ -8,7 +8,12 @@
         /* ===== PAGE ===== */
         @page {
             size: letter portrait;
-            margin: 0.5cm;
+            margin: 0.5cm 0.5cm;
+        }
+
+        /* ===== RESET ===== */
+        *, *::before, *::after {
+            box-sizing: border-box;
         }
 
         /* ===== BASE ===== */
@@ -74,6 +79,7 @@
         /* ===== PRODUCT TABLE ===== */
         .table-products {
             width: 100%;
+            table-layout: fixed;
             border-collapse: collapse;
             margin-top: 0.5rem;
         }
@@ -105,41 +111,24 @@
         /* ===== TABLE CONTAINMENT ===== */
         table {
             width: 100%;
-            table-layout: fixed;
-            font-size: 11px;
+            border-collapse: collapse;
         }
         th, td {
             word-wrap: break-word;
             overflow-wrap: break-word;
-            text-align: center;
-            padding: 4px !important;
+            padding: 4px;
         }
 
         /* ===== TOTALS ===== */
-        .totals-box {
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 3px;
-            padding: 0.8rem 1rem;
+        .totals-table {
+            width: 100%;
+            border-collapse: collapse;
         }
-        .totals-box table td {
-            padding: 0.2rem 0.3rem;
-            font-size: 9pt;
-            border: none;
-        }
-        .totals-box .grand-total td {
-            border-top: 2px solid #1e3a5f;
-            font-size: 10.5pt;
-            font-weight: 700;
-            color: #1e3a5f;
-            padding-top: 0.4rem;
-        }
-        .totals-box .divider-row td {
-            padding: 0;
-        }
-        .totals-box .divider-row hr {
-            margin: 0.4rem 0;
-            border-top: 1px solid #dee2e6;
+        .totals-table td, .totals-table th {
+            border: 1px solid #ddd;
+            padding: 6px;
+            text-align: left;
+            font-size: 11px;
         }
 
         /* ===== OBSERVACIONES ===== */
@@ -265,61 +254,52 @@
         </tbody>
     </table>
 
-    <!-- ===== TOTALES + OBSERVACIONES ===== -->
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 1rem; table-layout: fixed;">
-        <tr>
-            <td width="58%" style="vertical-align: top;">
-                {% if factura.observaciones %}
-                <div class="obs-box">
-                    <strong style="font-size:8pt; color:#1e3a5f;">OBSERVACIONES</strong>
-                    <p>{{ factura.observaciones }}</p>
-                </div>
+    <!-- ===== TOTALES ===== -->
+    <div style="margin-top: 15px;">
+        <div style="width: 55%; display: inline-block; vertical-align: top; font-size: 10px; color: #555;">
+            {% if factura.observaciones %}
+                <strong>OBSERVACIONES:</strong><br>
+                {{ factura.observaciones }}<br><br>
+            {% endif %}
+            <em>Generado por: {{ usuario.get_full_name|default:usuario.username }}</em><br>
+            <em>Documento electrónico con validez legal — SENIAT</em>
+        </div>
+        <div style="width: 40%; display: inline-block; vertical-align: top; margin-left: 4%;">
+            <table class="totals-table" style="width: 100%; margin-top: 0;">
+                <tr>
+                    <th>Subtotal Bs</th>
+                    <td style="text-align: right;">{{ factura.subtotal_bs|floatformat:2 }}</td>
+                </tr>
+                {% if factura.descuento_bs > 0 %}
+                <tr>
+                    <th>Descuento Bs</th>
+                    <td style="text-align: right; color: red;">({{ factura.descuento_bs|floatformat:2 }})</td>
+                </tr>
                 {% endif %}
-                <div style="margin-top:1rem; font-size:7.5pt; color:#adb5bd;">
-                    <em>Generado por: {{ usuario.get_full_name|default:usuario.username }}</em>
-                    <br>
-                    <em>Documento electrónico con validez legal — SENIAT</em>
-                </div>
-            </td>
-            <td width="42%" style="vertical-align: top;">
-                <div class="totals-box">
-                    <table style="width:100%;">
-                        <tr>
-                            <td>Subtotal Bs</td>
-                            <td style="text-align: right;">{{ factura.subtotal_bs|floatformat:2 }}</td>
-                        </tr>
-                        {% if factura.descuento_bs > 0 %}
-                        <tr>
-                            <td>Descuento Bs</td>
-                            <td style="text-align: right; color: #dc3545;">({{ factura.descuento_bs|floatformat:2 }})</td>
-                        </tr>
-                        {% endif %}
-                        <tr>
-                            <td>IVA 16% Bs</td>
-                            <td style="text-align: right;">{{ factura.monto_iva_bs|floatformat:2 }}</td>
-                        </tr>
-                        <tr class="grand-total">
-                            <td>TOTAL Bs</td>
-                            <td style="text-align: right;">{{ factura.total_bs|floatformat:2 }}</td>
-                        </tr>
-                        <tr class="divider-row"><td colspan="2"><hr></td></tr>
-                        <tr>
-                            <td>Subtotal USD</td>
-                            <td style="text-align: right;">{{ factura.subtotal_usd|floatformat:2 }}</td>
-                        </tr>
-                        <tr>
-                            <td>IVA 16% USD</td>
-                            <td style="text-align: right;">{{ factura.monto_iva_usd|floatformat:2 }}</td>
-                        </tr>
-                        <tr class="grand-total">
-                            <td>TOTAL USD</td>
-                            <td style="text-align: right;">{{ factura.total_usd|floatformat:2 }}</td>
-                        </tr>
-                    </table>
-                </div>
-            </td>
-        </tr>
-    </table>
+                <tr>
+                    <th>IVA 16% Bs</th>
+                    <td style="text-align: right;">{{ factura.monto_iva_bs|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <th style="font-size: 12px;">TOTAL Bs</th>
+                    <td style="font-size: 12px; text-align: right;"><strong>{{ factura.total_bs|floatformat:2 }}</strong></td>
+                </tr>
+                <tr><td colspan="2" style="border:none; padding: 2px;"></td></tr>
+                <tr>
+                    <th>Subtotal USD</th>
+                    <td style="text-align: right;">{{ factura.subtotal_usd|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <th>IVA 16% USD</th>
+                    <td style="text-align: right;">{{ factura.monto_iva_usd|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <th style="font-size: 12px;">TOTAL USD</th>
+                    <td style="font-size: 12px; text-align: right;"><strong>{{ factura.total_usd|floatformat:2 }}</strong></td>
+                </tr>
+            </table>
+        </div>
+    </div>
 
     <div class="invoice-footer">
         Documento generado electrónicamente
