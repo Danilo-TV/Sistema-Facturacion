@@ -1,0 +1,207 @@
+{% extends 'facturacion/base.html' %}
+{% load humanize %}
+
+{% block title %}Reporte de Ventas{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<!-- daterangepicker CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-daterangepicker/3.1.0/daterangepicker.css">
+<!-- DataTables Buttons Bootstrap 4 CSS -->
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap4.min.css">
+{% endblock %}
+
+{% block page_title %}Reporte de Ventas{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div class="form-row align-items-center">
+            <div class="col-auto">
+                <label for="date_range" class="sr-only">Rango de Fechas</label>
+                <input type="text" id="date_range" class="form-control" style="min-width: 280px; cursor: pointer;" placeholder="Seleccionar rango de fechas" readonly>
+            </div>
+            <div class="col-auto">
+                <button type="button" id="btn_search" class="btn btn-primary">
+                    <i class="fas fa-search"></i> Buscar
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="sale_table" class="table table-bordered table-striped" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>N° Factura</th>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>Tipo</th>
+                        <th>Total Bs</th>
+                        <th>Total USD</th>
+                        <th>Estatus</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="4" style="text-align:right">Totales:</th>
+                        <th id="total_bs_footer"></th>
+                        <th id="total_usd_footer"></th>
+                        <th></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<!-- moment.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+<!-- daterangepicker -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-daterangepicker/3.1.0/daterangepicker.min.js"></script>
+<!-- DataTables Buttons -->
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+
+<script>
+$(document).ready(function() {
+    // Initialize daterangepicker with last 30 days
+    var start = moment().subtract(29, 'days');
+    var end = moment();
+
+    function cb(start, end) {
+        $('#date_range').val(start.format('DD/MM/YYYY') + ' - ' + end.format('DD/MM/YYYY'));
+    }
+
+    $('#date_range').daterangepicker({
+        startDate: start,
+        endDate: end,
+        locale: {
+            format: 'DD/MM/YYYY',
+            separator: ' - ',
+            applyLabel: 'Aplicar',
+            cancelLabel: 'Cancelar',
+            fromLabel: 'Desde',
+            toLabel: 'Hasta',
+            customRangeLabel: 'Personalizado',
+            weekLabel: 'S',
+            daysOfWeek: ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa'],
+            monthNames: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
+            firstDay: 1
+        },
+        ranges: {
+            'Hoy': [moment(), moment()],
+            'Ayer': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+            'Últimos 7 días': [moment().subtract(6, 'days'), moment()],
+            'Últimos 30 días': [moment().subtract(29, 'days'), moment()],
+            'Este mes': [moment().startOf('month'), moment().endOf('month')],
+            'Mes anterior': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+        }
+    }, cb);
+
+    cb(start, end);
+
+    // DataTable
+    var table = $('#sale_table').DataTable({
+        dom: 'Bfrtip',
+        buttons: [
+            {
+                extend: 'excel',
+                text: '<i class="fas fa-file-excel"></i> Excel',
+                className: 'btn btn-success btn-sm',
+                exportOptions: {
+                    columns: ':visible'
+                }
+            },
+            {
+                extend: 'pdf',
+                text: '<i class="fas fa-file-pdf"></i> PDF',
+                className: 'btn btn-danger btn-sm',
+                exportOptions: {
+                    columns: ':visible'
+                },
+                orientation: 'landscape',
+                pageSize: 'LETTER'
+            }
+        ],
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
+        },
+        columns: [
+            { data: 'numero' },
+            { data: 'fecha' },
+            { data: 'cliente' },
+            { data: 'tipo' },
+            {
+                data: 'total_bs',
+                render: function(data) {
+                    return '$ ' + parseFloat(data).toFixed(2);
+                }
+            },
+            {
+                data: 'total_usd',
+                render: function(data) {
+                    return '$ ' + parseFloat(data).toFixed(2);
+                }
+            },
+            { data: 'estatus' }
+        ],
+        order: [[1, 'desc']],
+        footerCallback: function(row, data) {
+            var totalBs = 0, totalUsd = 0;
+            data.forEach(function(d) {
+                totalBs += parseFloat(d.total_bs) || 0;
+                totalUsd += parseFloat(d.total_usd) || 0;
+            });
+            $('#total_bs_footer').text('Bs ' + totalBs.toFixed(2));
+            $('#total_usd_footer').text('$ ' + totalUsd.toFixed(2));
+        }
+    });
+
+    // Search function
+    function loadReport() {
+        var dates = $('#date_range').val().split(' - ');
+        var startDate = dates[0].split('/').reverse().join('-');
+        var endDate = dates[1].split('/').reverse().join('-');
+
+        $.ajax({
+            url: '{% url "facturacion:report_sale" %}',
+            method: 'POST',
+            data: {
+                action: 'search_report',
+                start_date: startDate,
+                end_date: endDate,
+                csrfmiddlewaretoken: csrf_token
+            },
+            dataType: 'json',
+            success: function(response) {
+                table.clear();
+                table.rows.add(response.data);
+                table.draw();
+            }
+        });
+    }
+
+    // Auto-load on date pick
+    $('#date_range').on('apply.daterangepicker', function() {
+        loadReport();
+    });
+
+    // Manual search via button
+    $('#btn_search').on('click', function() {
+        loadReport();
+    });
+
+    // Initial load
+    loadReport();
+});
+</script>
+{% endblock %}
