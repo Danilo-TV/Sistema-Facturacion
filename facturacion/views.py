@@ -656,6 +656,13 @@ class ReportSaleView(LoginRequiredMixin, TemplateView):
                 fecha_emision__date__lte=end_date,
             ).select_related('cliente')
 
+            # Aggregate totals
+            totals = queryset.aggregate(
+                subtotal_usd=Sum('subtotal_usd'),
+                monto_iva_usd=Sum('monto_iva_usd'),
+                total_usd=Sum('total_usd'),
+            )
+
             data = []
             for f in queryset:
                 data.append({
@@ -668,6 +675,13 @@ class ReportSaleView(LoginRequiredMixin, TemplateView):
                     'estatus': f.get_estatus_display(),
                 })
 
-            return JsonResponse({'data': data}, safe=False)
+            return JsonResponse({
+                'data': data,
+                'totals': {
+                    'subtotal_usd': float(totals['subtotal_usd'] or 0),
+                    'monto_iva_usd': float(totals['monto_iva_usd'] or 0),
+                    'total_usd': float(totals['total_usd'] or 0),
+                },
+            })
 
         return JsonResponse({'error': 'Acción no válida'}, status=400)
