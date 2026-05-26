@@ -6,7 +6,7 @@
 {% block extra_css %}
 {{ block.super }}
 <!-- daterangepicker CSS -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-daterangepicker/3.1.0/daterangepicker.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker@3.1.0/daterangepicker.css">
 <!-- DataTables Buttons Bootstrap 4 CSS -->
 <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap4.min.css">
 {% endblock %}
@@ -53,6 +53,31 @@
                     </tr>
                 </tfoot>
             </table>
+            <div id="totals_summary" class="row mt-3" style="display:none;">
+                <div class="col-md-6 offset-md-6">
+                    <div class="card card-success card-outline">
+                        <div class="card-header">
+                            <h5 class="card-title">Totales del Período</h5>
+                        </div>
+                        <div class="card-body p-2">
+                            <table class="table table-sm table-borderless mb-0">
+                                <tr>
+                                    <th>Subtotal USD</th>
+                                    <td id="total_subtotal_usd" class="text-right font-weight-bold"></td>
+                                </tr>
+                                <tr>
+                                    <th>IVA 16% USD</th>
+                                    <td id="total_iva_usd" class="text-right font-weight-bold text-success"></td>
+                                </tr>
+                                <tr class="border-top">
+                                    <th>TOTAL USD</th>
+                                    <td id="total_total_usd" class="text-right font-weight-bold text-primary" style="font-size: 1.1rem;"></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -60,10 +85,10 @@
 
 {% block extra_js %}
 {{ block.super }}
-<!-- moment.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+<!-- moment.js with locales (for Spanish) -->
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/min/moment-with-locales.min.js"></script>
 <!-- daterangepicker -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-daterangepicker/3.1.0/daterangepicker.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/daterangepicker@3.1.0/daterangepicker.min.js"></script>
 <!-- DataTables Buttons -->
 <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
 <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
@@ -73,6 +98,8 @@
 
 <script>
 $(document).ready(function() {
+    moment.locale('es');
+
     // Initialize daterangepicker with last 30 days
     var start = moment().subtract(29, 'days');
     var end = moment();
@@ -186,6 +213,14 @@ $(document).ready(function() {
                 table.clear();
                 table.rows.add(response.data);
                 table.draw();
+
+                // Backend totals
+                if (response.totals) {
+                    $('#total_subtotal_usd').text('$ ' + parseFloat(response.totals.subtotal_usd).toFixed(2));
+                    $('#total_iva_usd').text('$ ' + parseFloat(response.totals.monto_iva_usd).toFixed(2));
+                    $('#total_total_usd').text('$ ' + parseFloat(response.totals.total_usd).toFixed(2));
+                    $('#totals_summary').show();
+                }
             }
         });
     }
