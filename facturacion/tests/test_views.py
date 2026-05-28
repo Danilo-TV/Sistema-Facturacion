@@ -5,6 +5,7 @@ import pytest
 from django.urls import reverse
 
 from facturacion.models import CabeceraFactura, DetalleVenta, Producto
+from facturacion.tests.conftest import usuario_con_permisos
 from facturacion.tests.factories import (
     ClienteFactory,
     ProductoFactory,
@@ -48,7 +49,6 @@ class TestLoginRequired:
         'facturacion:producto_list',
         'facturacion:cliente_list',
         'facturacion:categoria_list',
-        'facturacion:factura_list',
         'facturacion:dashboard',
     ])
     def test_vista_retorna_200_con_login(self, client, url_name):
@@ -59,9 +59,17 @@ class TestLoginRequired:
         assert response.status_code == 200, f'{url_name} falló con 200'
 
     @pytest.mark.django_db
+    def test_factura_list_retorna_200_con_permiso(self, client):
+        """FacturaListView requiere permiso view_cabecerafactura."""
+        usuario = usuario_con_permisos('view_cabecerafactura')
+        client.force_login(usuario)
+        response = client.get(reverse('facturacion:factura_list'))
+        assert response.status_code == 200
+
+    @pytest.mark.django_db
     def test_factura_create_get_retorna_200(self, client):
-        """FacturaCreateView GET debe responder 200 con login."""
-        usuario = UsuarioFactory()
+        """FacturaCreateView GET debe responder 200 con login y permiso."""
+        usuario = usuario_con_permisos('add_cabecerafactura')
         client.force_login(usuario)
         response = client.get(reverse('facturacion:factura_create'))
         assert response.status_code == 200
@@ -166,7 +174,7 @@ class TestStockEnCreacionFactura:
     @pytest.mark.django_db
     def test_rechaza_stock_insuficiente(self, client):
         """Si la cantidad solicitada excede el stock, debe responder 400."""
-        usuario = UsuarioFactory()
+        usuario = usuario_con_permisos('add_cabecerafactura')
         cliente_obj = ClienteFactory()
         producto = ProductoFactory(stock_actual=2)
 
@@ -200,7 +208,7 @@ class TestStockEnCreacionFactura:
     @pytest.mark.django_db
     def test_rechaza_cantidad_invalida(self, client):
         """Cantidad cero o negativa debe ser rechazada."""
-        usuario = UsuarioFactory()
+        usuario = usuario_con_permisos('add_cabecerafactura')
         cliente_obj = ClienteFactory()
         producto = ProductoFactory(stock_actual=10)
 
@@ -234,7 +242,7 @@ class TestStockEnCreacionFactura:
     @pytest.mark.django_db
     def test_permite_venta_con_stock_suficiente(self, client):
         """Si hay stock suficiente, la petición debe procesarse (sin error de stock)."""
-        usuario = UsuarioFactory()
+        usuario = usuario_con_permisos('add_cabecerafactura')
         cliente_obj = ClienteFactory()
         producto = ProductoFactory(stock_actual=50)
 
@@ -269,7 +277,7 @@ class TestStockEnCreacionFactura:
     @pytest.mark.django_db
     def test_stock_se_descarta_al_crear_factura(self, client):
         """Al crear factura pagada, el stock del producto debe disminuir."""
-        usuario = UsuarioFactory()
+        usuario = usuario_con_permisos('add_cabecerafactura')
         cliente_obj = ClienteFactory()
         producto = ProductoFactory(stock_actual=50)
 
@@ -314,7 +322,7 @@ class TestCreacionFacturaCompleta:
     @pytest.mark.django_db
     def test_crear_factura_con_un_producto(self, client):
         """Factura con 1 producto: verificar creación y montos."""
-        usuario = UsuarioFactory()
+        usuario = usuario_con_permisos('add_cabecerafactura')
         cliente_obj = ClienteFactory()
         producto = ProductoFactory(
             precio_bs=Decimal('100.00'),
@@ -370,7 +378,7 @@ class TestCreacionFacturaCompleta:
     @pytest.mark.django_db
     def test_crear_factura_con_varios_productos(self, client):
         """Factura con 2 productos: verificar montos consolidados."""
-        usuario = UsuarioFactory()
+        usuario = usuario_con_permisos('add_cabecerafactura')
         cliente_obj = ClienteFactory()
         p1 = ProductoFactory(precio_bs=Decimal('100.00'), precio_usd=Decimal('2.00'), stock_actual=10)
         p2 = ProductoFactory(precio_bs=Decimal('50.00'), precio_usd=Decimal('1.00'), stock_actual=20)
@@ -433,7 +441,7 @@ class TestCreacionFacturaCompleta:
     @pytest.mark.django_db
     def test_rechaza_factura_sin_cliente(self, client):
         """POST sin cliente debe responder 400."""
-        usuario = UsuarioFactory()
+        usuario = usuario_con_permisos('add_cabecerafactura')
         client.force_login(usuario)
         url = reverse('facturacion:factura_create')
 
@@ -451,7 +459,7 @@ class TestCreacionFacturaCompleta:
     @pytest.mark.django_db
     def test_rechaza_factura_sin_productos(self, client):
         """POST sin detalles debe responder 400."""
-        usuario = UsuarioFactory()
+        usuario = usuario_con_permisos('add_cabecerafactura')
         cliente_obj = ClienteFactory()
         client.force_login(usuario)
         url = reverse('facturacion:factura_create')
@@ -471,7 +479,7 @@ class TestCreacionFacturaCompleta:
     @pytest.mark.django_db
     def test_rechaza_json_invalido(self, client):
         """POST con JSON mal formado debe responder 400."""
-        usuario = UsuarioFactory()
+        usuario = usuario_con_permisos('add_cabecerafactura')
         client.force_login(usuario)
         url = reverse('facturacion:factura_create')
 
@@ -491,7 +499,7 @@ class TestDescuentoEnCreacionFactura:
     @pytest.mark.django_db
     def test_rechaza_descuento_excesivo(self, client):
         """Descuento > 20% del subtotal debe ser rechazado."""
-        usuario = UsuarioFactory()
+        usuario = usuario_con_permisos('add_cabecerafactura')
         cliente_obj = ClienteFactory()
         producto = ProductoFactory(precio_bs=Decimal('100.00'), stock_actual=10)
 

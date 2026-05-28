@@ -244,6 +244,9 @@ class CabeceraFactura(models.Model):
     class Meta:
         verbose_name = 'Factura'
         verbose_name_plural = 'Facturas'
+        permissions = [
+            ('view_report', 'Puede ver reportes de ventas'),
+        ]
         indexes = [
             models.Index(fields=['numero_factura']),
             models.Index(fields=['cliente']),
