@@ -3,6 +3,8 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+
+from .mixins import ValidarPermisosMixin
 from django.db import models, transaction
 from django.db.models import Sum
 from django.db.models.functions import TruncMonth
@@ -247,7 +249,8 @@ class CategoriaUpdateView(LoginRequiredMixin, UpdateView):
 # FACTURA — CRUD
 # ======================================================================
 
-class FacturaListView(LoginRequiredMixin, ListView):
+class FacturaListView(ValidarPermisosMixin, LoginRequiredMixin, ListView):
+    permission_required = ('facturacion.view_cabecerafactura',)
     model = CabeceraFactura
     template_name = 'facturacion/factura_list.html'
     context_object_name = 'facturas'
@@ -312,12 +315,13 @@ class FacturaPdfView(LoginRequiredMixin, DetailView):
         return response
 
 
-class FacturaCreateView(LoginRequiredMixin, TemplateView):
+class FacturaCreateView(ValidarPermisosMixin, LoginRequiredMixin, TemplateView):
     """Vista principal de creación de facturas.
 
     GET  → Renderiza el formulario vacío con DataTables y Select2.
     POST → Recibe JSON con los datos completos, valida y crea la factura.
     """
+    permission_required = ('facturacion.add_cabecerafactura',)
     template_name = 'facturacion/factura_form.html'
 
     def post(self, request, *args, **kwargs):
@@ -639,7 +643,8 @@ class DashboardDataAJAXView(LoginRequiredMixin, View):
 # REPORTES
 # ======================================================================
 
-class ReportSaleView(LoginRequiredMixin, TemplateView):
+class ReportSaleView(ValidarPermisosMixin, LoginRequiredMixin, TemplateView):
+    permission_required = ('facturacion.view_report',)
     template_name = 'facturacion/report.html'
 
     def post(self, request, *args, **kwargs):
