@@ -45,15 +45,15 @@ class TestLoginRequired:
         assert '/login/' in response.url, f'{url_name} no redirige a /login/'
 
     @pytest.mark.django_db
-    @pytest.mark.parametrize('url_name', [
-        'facturacion:producto_list',
-        'facturacion:cliente_list',
-        'facturacion:categoria_list',
-        'facturacion:dashboard',
+    @pytest.mark.parametrize('url_name,permiso', [
+        ('facturacion:producto_list', 'view_producto'),
+        ('facturacion:cliente_list', 'view_cliente'),
+        ('facturacion:categoria_list', 'view_categoria'),
+        ('facturacion:dashboard', 'view_cabecerafactura'),
     ])
-    def test_vista_retorna_200_con_login(self, client, url_name):
-        """Con autenticación, {url_name} debe responder 200 OK."""
-        usuario = UsuarioFactory()
+    def test_vista_retorna_200_con_permiso(self, client, url_name, permiso):
+        """Con autenticación y permiso, {url_name} debe responder 200 OK."""
+        usuario = usuario_con_permisos(permiso)
         client.force_login(usuario)
         response = client.get(reverse(url_name))
         assert response.status_code == 200, f'{url_name} falló con 200'
@@ -76,9 +76,9 @@ class TestLoginRequired:
 
     @pytest.mark.django_db
     def test_factura_detail_retorna_200(self, client):
-        """FacturaDetailView debe responder 200 con login."""
+        """FacturaDetailView debe responder 200 con login y permiso."""
         from facturacion.tests.factories import CabeceraFacturaFactory
-        usuario = UsuarioFactory()
+        usuario = usuario_con_permisos('view_cabecerafactura')
         factura = CabeceraFacturaFactory()
         client.force_login(usuario)
         response = client.get(reverse('facturacion:factura_detail', kwargs={'pk': factura.pk}))
@@ -86,9 +86,9 @@ class TestLoginRequired:
 
     @pytest.mark.django_db
     def test_producto_edit_retorna_200(self, client):
-        """ProductoUpdateView debe responder 200 con login."""
+        """ProductoUpdateView debe responder 200 con login y permiso."""
         from facturacion.tests.factories import ProductoFactory
-        usuario = UsuarioFactory()
+        usuario = usuario_con_permisos('change_producto')
         producto = ProductoFactory()
         client.force_login(usuario)
         response = client.get(reverse('facturacion:producto_edit', kwargs={'pk': producto.pk}))
@@ -96,9 +96,9 @@ class TestLoginRequired:
 
     @pytest.mark.django_db
     def test_producto_delete_retorna_200(self, client):
-        """ProductoDeleteView GET debe responder 200 con login."""
+        """ProductoDeleteView GET debe responder 200 con login y permiso."""
         from facturacion.tests.factories import ProductoFactory
-        usuario = UsuarioFactory()
+        usuario = usuario_con_permisos('delete_producto')
         producto = ProductoFactory()
         client.force_login(usuario)
         response = client.get(reverse('facturacion:producto_delete', kwargs={'pk': producto.pk}))
@@ -130,7 +130,7 @@ class TestAJAXSeguridad:
     @pytest.mark.django_db
     def test_cliente_search_retorna_json(self, client):
         """Endpoint de búsqueda debe retornar JSON con items."""
-        usuario = UsuarioFactory()
+        usuario = usuario_con_permisos('view_cliente')
         ClienteFactory(nombre_razon_social='Tech Solutions')
         client.force_login(usuario)
         response = client.get(reverse('facturacion:cliente_search') + '?q=Tech')
@@ -142,7 +142,7 @@ class TestAJAXSeguridad:
     @pytest.mark.django_db
     def test_producto_search_retorna_json_con_precios(self, client):
         """Endpoint de búsqueda debe incluir precio y stock en la respuesta."""
-        usuario = UsuarioFactory()
+        usuario = usuario_con_permisos('view_producto')
         ProductoFactory(codigo='LAP-001', nombre='Laptop', precio_bs=Decimal('500.00'))
         client.force_login(usuario)
         response = client.get(reverse('facturacion:producto_search') + '?q=LAP')
@@ -155,7 +155,7 @@ class TestAJAXSeguridad:
     @pytest.mark.django_db
     def test_cliente_search_requiere_minimo_2_caracteres(self, client):
         """Búsqueda con menos de 2 caracteres debe retornar vacío."""
-        usuario = UsuarioFactory()
+        usuario = usuario_con_permisos('view_cliente')
         ClienteFactory()
         client.force_login(usuario)
         response = client.get(reverse('facturacion:cliente_search') + '?q=a')
