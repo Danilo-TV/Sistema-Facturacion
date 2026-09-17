@@ -39,7 +39,8 @@ from .models import (
 # DASHBOARD
 # ======================================================================
 
-class DashboardView(LoginRequiredMixin, TemplateView):
+class DashboardView(ValidarPermisosMixin, LoginRequiredMixin, TemplateView):
+    permission_required = ('facturacion.view_cabecerafactura',)
     template_name = 'facturacion/dashboard.html'
 
     def get_context_data(self, **kwargs):
@@ -64,7 +65,8 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 # PRODUCTO — CRUD
 # ======================================================================
 
-class ProductoListView(LoginRequiredMixin, ListView):
+class ProductoListView(ValidarPermisosMixin, LoginRequiredMixin, ListView):
+    permission_required = ('facturacion.view_producto',)
     model = Producto
     template_name = 'facturacion/producto_list.html'
     context_object_name = 'productos'
@@ -84,7 +86,8 @@ class ProductoListView(LoginRequiredMixin, ListView):
         )
 
 
-class ProductoCreateView(LoginRequiredMixin, CreateView):
+class ProductoCreateView(ValidarPermisosMixin, LoginRequiredMixin, CreateView):
+    permission_required = ('facturacion.add_producto',)
     model = Producto
     template_name = 'facturacion/producto_form.html'
     fields = [
@@ -107,7 +110,8 @@ class ProductoCreateView(LoginRequiredMixin, CreateView):
         return super().form_valid(form)
 
 
-class ProductoUpdateView(LoginRequiredMixin, UpdateView):
+class ProductoUpdateView(ValidarPermisosMixin, LoginRequiredMixin, UpdateView):
+    permission_required = ('facturacion.change_producto',)
     model = Producto
     template_name = 'facturacion/producto_form.html'
     fields = [
@@ -130,7 +134,8 @@ class ProductoUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
-class ProductoDeleteView(LoginRequiredMixin, DeleteView):
+class ProductoDeleteView(ValidarPermisosMixin, LoginRequiredMixin, DeleteView):
+    permission_required = ('facturacion.delete_producto',)
     model = Producto
     template_name = 'facturacion/producto_confirm_delete.html'
     success_url = reverse_lazy('facturacion:producto_list')
@@ -144,7 +149,8 @@ class ProductoDeleteView(LoginRequiredMixin, DeleteView):
 # CLIENTE — CRUD
 # ======================================================================
 
-class ClienteListView(LoginRequiredMixin, ListView):
+class ClienteListView(ValidarPermisosMixin, LoginRequiredMixin, ListView):
+    permission_required = ('facturacion.view_cliente',)
     model = Cliente
     template_name = 'facturacion/cliente_list.html'
     context_object_name = 'clientes'
@@ -152,7 +158,8 @@ class ClienteListView(LoginRequiredMixin, ListView):
     ordering = ['nombre_razon_social']
 
 
-class ClienteCreateView(LoginRequiredMixin, CreateView):
+class ClienteCreateView(ValidarPermisosMixin, LoginRequiredMixin, CreateView):
+    permission_required = ('facturacion.add_cliente',)
     model = Cliente
     template_name = 'facturacion/cliente_form.html'
     fields = [
@@ -172,7 +179,8 @@ class ClienteCreateView(LoginRequiredMixin, CreateView):
         return super().form_valid(form)
 
 
-class ClienteUpdateView(LoginRequiredMixin, UpdateView):
+class ClienteUpdateView(ValidarPermisosMixin, LoginRequiredMixin, UpdateView):
+    permission_required = ('facturacion.change_cliente',)
     model = Cliente
     template_name = 'facturacion/cliente_form.html'
     fields = [
@@ -196,7 +204,8 @@ class ClienteUpdateView(LoginRequiredMixin, UpdateView):
 # CATEGORÍA — CRUD
 # ======================================================================
 
-class CategoriaListView(LoginRequiredMixin, ListView):
+class CategoriaListView(ValidarPermisosMixin, LoginRequiredMixin, ListView):
+    permission_required = ('facturacion.view_categoria',)
     model = Categoria
     template_name = 'facturacion/categoria_list.html'
     context_object_name = 'categorias'
@@ -211,7 +220,8 @@ class CategoriaListView(LoginRequiredMixin, ListView):
         )
 
 
-class CategoriaCreateView(LoginRequiredMixin, CreateView):
+class CategoriaCreateView(ValidarPermisosMixin, LoginRequiredMixin, CreateView):
+    permission_required = ('facturacion.add_categoria',)
     model = Categoria
     template_name = 'facturacion/categoria_form.html'
     fields = ['nombre', 'descripcion', 'categoria_padre', 'is_active']
@@ -228,7 +238,8 @@ class CategoriaCreateView(LoginRequiredMixin, CreateView):
         return super().form_valid(form)
 
 
-class CategoriaUpdateView(LoginRequiredMixin, UpdateView):
+class CategoriaUpdateView(ValidarPermisosMixin, LoginRequiredMixin, UpdateView):
+    permission_required = ('facturacion.change_categoria',)
     model = Categoria
     template_name = 'facturacion/categoria_form.html'
     fields = ['nombre', 'descripcion', 'categoria_padre', 'is_active']
@@ -270,7 +281,8 @@ class FacturaListView(ValidarPermisosMixin, LoginRequiredMixin, ListView):
         )
 
 
-class FacturaDetailView(LoginRequiredMixin, DetailView):
+class FacturaDetailView(ValidarPermisosMixin, LoginRequiredMixin, DetailView):
+    permission_required = ('facturacion.view_cabecerafactura',)
     model = CabeceraFactura
     template_name = 'facturacion/factura_detail.html'
     context_object_name = 'factura'
@@ -284,9 +296,10 @@ class FacturaDetailView(LoginRequiredMixin, DetailView):
         )
 
 
-class FacturaPdfView(LoginRequiredMixin, DetailView):
+class FacturaPdfView(ValidarPermisosMixin, LoginRequiredMixin, DetailView):
     """Genera un PDF de la factura usando WeasyPrint."""
 
+    permission_required = ('facturacion.view_cabecerafactura',)
     model = CabeceraFactura
 
     def get_queryset(self):
@@ -529,7 +542,8 @@ class FacturaCreateView(ValidarPermisosMixin, LoginRequiredMixin, TemplateView):
 # AJAX — SELECT2 SEARCH
 # ======================================================================
 
-class ClienteSearchAJAXView(LoginRequiredMixin, View):
+class ClienteSearchAJAXView(ValidarPermisosMixin, LoginRequiredMixin, View):
+    permission_required = ('facturacion.view_cliente',)
     """Endpoint para Select2: busca clientes por nombre o documento."""
 
     def get(self, request, *args, **kwargs):
@@ -553,7 +567,8 @@ class ClienteSearchAJAXView(LoginRequiredMixin, View):
         return JsonResponse({'items': items})
 
 
-class ProductoSearchAJAXView(LoginRequiredMixin, View):
+class ProductoSearchAJAXView(ValidarPermisosMixin, LoginRequiredMixin, View):
+    permission_required = ('facturacion.view_producto',)
     """Endpoint para Select2: busca productos por código o nombre."""
 
     def get(self, request, *args, **kwargs):
@@ -588,7 +603,8 @@ class ProductoSearchAJAXView(LoginRequiredMixin, View):
 # DASHBOARD — AJAX DATA
 # ======================================================================
 
-class DashboardDataAJAXView(LoginRequiredMixin, View):
+class DashboardDataAJAXView(ValidarPermisosMixin, LoginRequiredMixin, View):
+    permission_required = ('facturacion.view_cabecerafactura',)
     """Endpoint JSON para el dashboard interactivo.
 
     GET → devuelve:
