@@ -17,9 +17,8 @@ class Usuario(AbstractUser):
     last_name = models.CharField(max_length=100, blank=True)
 
     class Rol(models.TextChoices):
-        ADMIN = 'admin', 'Admin'
+        ADMIN = 'admin', 'Administrador'
         VENDEDOR = 'vendedor', 'Vendedor'
-        CONTADOR = 'contador', 'Contador'
 
     rol = models.CharField(
         max_length=20,

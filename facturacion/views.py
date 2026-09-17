@@ -33,6 +33,7 @@ from .models import (
     Producto,
     Usuario,
 )
+from .forms import UserForm
 
 
 # ======================================================================
@@ -706,3 +707,60 @@ class ReportSaleView(ValidarPermisosMixin, LoginRequiredMixin, TemplateView):
             })
 
         return JsonResponse({'error': 'Acción no válida'}, status=400)
+
+
+# ======================================================================
+# USUARIO — CRUD
+# ======================================================================
+
+
+class UsuarioListView(ValidarPermisosMixin, LoginRequiredMixin, ListView):
+    permission_required = ('facturacion.view_usuario',)
+    model = Usuario
+    template_name = 'facturacion/usuario_list.html'
+    context_object_name = 'usuarios'
+    paginate_by = 25
+    ordering = ['username']
+
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .only('id', 'username', 'email', 'first_name', 'last_name', 'rol', 'is_active')
+        )
+
+
+class UsuarioCreateView(ValidarPermisosMixin, LoginRequiredMixin, CreateView):
+    permission_required = ('facturacion.add_usuario',)
+    model = Usuario
+    form_class = UserForm
+    template_name = 'facturacion/usuario_form.html'
+    success_url = reverse_lazy('facturacion:usuario_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo'] = 'Nuevo Usuario'
+        context['icono'] = 'user-plus'
+        return context
+
+    def form_valid(self, form):
+        messages.success(self.request, 'Usuario creado exitosamente.')
+        return super().form_valid(form)
+
+
+class UsuarioUpdateView(ValidarPermisosMixin, LoginRequiredMixin, UpdateView):
+    permission_required = ('facturacion.change_usuario',)
+    model = Usuario
+    form_class = UserForm
+    template_name = 'facturacion/usuario_form.html'
+    success_url = reverse_lazy('facturacion:usuario_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo'] = 'Editar Usuario'
+        context['icono'] = 'user-edit'
+        return context
+
+    def form_valid(self, form):
+        messages.success(self.request, 'Usuario actualizado exitosamente.')
+        return super().form_valid(form)

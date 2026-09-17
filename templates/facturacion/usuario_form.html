@@ -1,0 +1,83 @@
+{% extends 'facturacion/base.html' %}
+{% block title %}{{ titulo }} — Facturación{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="fas fa-{{ icono }} mr-2"></i>{{ titulo }}</h4>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="control-label">Usuario *</label>
+                                <input type="text" name="username" class="form-control" value="{{ form.username.value|default:'' }}" required maxlength="150">
+                                {% if form.username.errors %}<div class="text-danger small">{{ form.username.errors.0 }}</div>{% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="control-label">Email *</label>
+                                <input type="email" name="email" class="form-control" value="{{ form.email.value|default:'' }}" required maxlength="254">
+                                {% if form.email.errors %}<div class="text-danger small">{{ form.email.errors.0 }}</div>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="control-label">Nombres *</label>
+                                <input type="text" name="first_name" class="form-control" value="{{ form.first_name.value|default:'' }}" required maxlength="100">
+                                {% if form.first_name.errors %}<div class="text-danger small">{{ form.first_name.errors.0 }}</div>{% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="control-label">Apellidos *</label>
+                                <input type="text" name="last_name" class="form-control" value="{{ form.last_name.value|default:'' }}" required maxlength="100">
+                                {% if form.last_name.errors %}<div class="text-danger small">{{ form.last_name.errors.0 }}</div>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="control-label">Rol *</label>
+                                <select name="rol" class="form-control" required>
+                                    <option value="">— Seleccione —</option>
+                                    {% for val, label in form.rol.field.choices %}
+                                        {% if val %}
+                                        <option value="{{ val }}" {% if form.rol.value == val %}selected{% endif %}>{{ label }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                                {% if form.rol.errors %}<div class="text-danger small">{{ form.rol.errors.0 }}</div>{% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <div class="form-check mt-4">
+                                    <input type="checkbox" name="is_active" class="form-check-input" id="id_is_active" {% if form.is_active.value or not form.instance.pk %}checked{% endif %}>
+                                    <label class="form-check-label" for="id_is_active">Activo</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 d-flex justify-content-between">
+                        <a href="{% url 'facturacion:usuario_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Guardar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

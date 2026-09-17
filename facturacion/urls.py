@@ -39,4 +39,9 @@ urlpatterns = [
 
     # AJAX — Dashboard
     path('api/dashboard/data/', views.DashboardDataAJAXView.as_view(), name='dashboard_data'),
+
+    # Usuarios
+    path('usuarios/', views.UsuarioListView.as_view(), name='usuario_list'),
+    path('usuarios/nuevo/', views.UsuarioCreateView.as_view(), name='usuario_create'),
+    path('usuarios/<uuid:pk>/editar/', views.UsuarioUpdateView.as_view(), name='usuario_edit'),
 ]
