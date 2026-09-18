@@ -49,14 +49,17 @@ class UsuarioAdmin(UserAdmin):
     )
 
     def save_model(self, request, obj, form, change):
-        # Hash password if provided
-        if 'password' in form.changed_data and obj.password:
-            obj.set_password(obj.password)
+        # Save the object first (required for ManyToMany relationships like groups)
+        super().save_model(request, obj, form, change)
 
-        # Clear existing groups
+        # Hash password if provided in form (handles both password1/password2 from add_form and password from change_form)
+        password = form.cleaned_data.get('password') or form.cleaned_data.get('password1')
+        if password:
+            obj.set_password(password)
+            obj.save(update_fields=['password'])
+
+        # Clear existing groups and assign based on rol
         obj.groups.clear()
-
-        # Assign group based on rol
         if obj.rol == Usuario.Rol.ADMIN:
             group, _ = Group.objects.get_or_create(name='Administrador')
             obj.groups.add(group)
@@ -67,8 +70,7 @@ class UsuarioAdmin(UserAdmin):
             obj.groups.add(group)
             obj.is_staff = False
             obj.is_superuser = False
-
-        super().save_model(request, obj, form, change)
+        obj.save()
 
 
 @admin.register(Cliente)
