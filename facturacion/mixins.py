@@ -14,11 +14,15 @@ class ValidarPermisosMixin(AccessMixin):
     permission_required = []
 
     def dispatch(self, request, *args, **kwargs):
-        # 1. Verificar autenticación
+        # 1. Superuser bypass all checks
+        if request.user.is_superuser:
+            return super().dispatch(request, *args, **kwargs)
+
+        # 2. Verify authentication
         if not request.user.is_authenticated:
             return self.handle_no_permission()
 
-        # 2. Verificar permisos si están definidos
+        # 3. Verify permissions
         if self.permission_required:
             if not request.user.has_perms(self.permission_required):
                 messages.error(
