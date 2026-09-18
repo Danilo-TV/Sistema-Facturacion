@@ -4,21 +4,42 @@ from .models import Usuario
 
 
 class UserForm(forms.ModelForm):
+    password = forms.CharField(
+        label='Contraseña',
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'autocomplete': 'new-password'}),
+        required=True,  # Required for creation
+        help_text='Mínimo 8 caracteres'
+    )
+
     class Meta:
         model = Usuario
         fields = ['username', 'email', 'first_name', 'last_name', 'rol', 'is_active']
-        # Explicitly exclude: is_staff, is_superuser, groups, user_permissions
+        widgets = {
+            'username': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'rol': forms.Select(attrs={'class': 'form-select'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Make fields required as needed
         self.fields['email'].required = True
         self.fields['username'].required = True
         self.fields['first_name'].required = True
         self.fields['last_name'].required = True
+        # Password only required for NEW users (not saved to DB yet)
+        # Use _state.adding because UUID PK is assigned on instantiation
+        if self.instance and not self.instance._state.adding:
+            self.fields['password'].required = False
+            self.fields['password'].help_text = 'Dejar en blanco para no cambiar la contraseña'
 
     def save(self, commit=True):
         user = super().save(commit=False)
+        password = self.cleaned_data.get('password')
+        if password and password.strip():
+            user.set_password(password)
         if commit:
             user.save()
             # Clear existing groups
