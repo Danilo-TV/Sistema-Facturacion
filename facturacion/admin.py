@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.models import Group
 
 from .models import (
     CabeceraFactura,
@@ -11,11 +13,62 @@ from .models import (
 
 
 @admin.register(Usuario)
-class UsuarioAdmin(admin.ModelAdmin):
+class UsuarioAdmin(UserAdmin):
     list_display = ['username', 'email', 'rol', 'first_name', 'last_name', 'is_active']
-    list_filter = ['rol', 'is_active']
+    list_filter = ['rol', 'is_active', 'is_staff', 'is_superuser', 'groups']
     search_fields = ['username', 'email', 'first_name', 'last_name']
     ordering = ['username']
+    filter_horizontal = ['groups', 'user_permissions']
+
+    fieldsets = (
+        (None, {'fields': ('username', 'password')}),
+        ('Información personal', {'fields': ('first_name', 'last_name', 'email', 'rol')}),
+        (
+            'Permisos',
+            {
+                'fields': (
+                    'is_active',
+                    'is_staff',
+                    'is_superuser',
+                    'groups',
+                    'user_permissions',
+                ),
+            },
+        ),
+        ('Fechas importantes', {'fields': ('last_login', 'date_joined')}),
+    )
+
+    add_fieldsets = (
+        (
+            None,
+            {
+                'classes': ('wide',),
+                'fields': ('username', 'email', 'first_name', 'last_name', 'rol', 'password1', 'password2'),
+            },
+        ),
+    )
+
+    def save_model(self, request, obj, form, change):
+        # Hash password if provided
+        if 'password' in form.changed_data and obj.password:
+            obj.set_password(obj.password)
+
+        # Clear existing groups
+        obj.groups.clear()
+
+        # Assign group based on rol
+        if obj.rol == Usuario.Rol.ADMIN:
+            group, _ = Group.objects.get_or_create(name='Administrador')
+            obj.groups.add(group)
+            obj.is_staff = True
+            obj.is_superuser = True
+        elif obj.rol == Usuario.Rol.VENDEDOR:
+            group, _ = Group.objects.get_or_create(name='Cajeros')
+            obj.groups.add(group)
+            obj.is_staff = False
+            obj.is_superuser = False
+
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(Cliente)
