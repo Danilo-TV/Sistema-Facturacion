@@ -41,7 +41,7 @@ from .forms import UserForm
 # ======================================================================
 
 class DashboardView(ValidarPermisosMixin, LoginRequiredMixin, TemplateView):
-    permission_required = ('facturacion.view_cabecerafactura',)
+    # Dashboard should only require authentication (LoginRequiredMixin handles this)
     template_name = 'facturacion/dashboard.html'
 
     def get_context_data(self, **kwargs):
