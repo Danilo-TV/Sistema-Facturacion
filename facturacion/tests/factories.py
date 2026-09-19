@@ -40,7 +40,7 @@ class ClienteFactory(DjangoModelFactory):
     numero_documento = factory.Sequence(lambda n: f'J{n:08d}')
     nombre_razon_social = factory.Faker('company')
     direccion = factory.Faker('address')
-    telefono = factory.Faker('phone_number')
+    telefono = factory.Sequence(lambda n: f'0412-{n:07d}')
     email = factory.Faker('email')
     is_active = True
 

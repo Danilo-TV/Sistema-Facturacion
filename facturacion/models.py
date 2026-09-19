@@ -1,6 +1,7 @@
 import uuid
 from decimal import Decimal
 
+import crum
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -66,6 +67,24 @@ class Cliente(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Auditoría automática
+    user_creation = models.ForeignKey(
+        'Usuario',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='%(class)s_creation',
+        verbose_name='Creado por'
+    )
+    user_updated = models.ForeignKey(
+        'Usuario',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='%(class)s_updated',
+        verbose_name='Actualizado por'
+    )
+
     class Meta:
         verbose_name = 'Cliente'
         verbose_name_plural = 'Clientes'
@@ -83,6 +102,16 @@ class Cliente(models.Model):
                     {'numero_documento': 'El RIF debe iniciar con una letra (J, G, V, E, etc.).'}
                 )
         super().clean()
+
+    def save(self, *args, **kwargs):
+        user = crum.get_current_user()
+        if user and not user.pk:
+            user = None
+
+        if self._state.adding:  # New object being created
+            self.user_creation = user
+        self.user_updated = user
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'{self.nombre_razon_social} ({self.tipo_documento}: {self.numero_documento})'
@@ -143,6 +172,24 @@ class Producto(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Auditoría automática
+    user_creation = models.ForeignKey(
+        'Usuario',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='%(class)s_creation',
+        verbose_name='Creado por'
+    )
+    user_updated = models.ForeignKey(
+        'Usuario',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='%(class)s_updated',
+        verbose_name='Actualizado por'
+    )
+
     class Meta:
         verbose_name = 'Producto'
         verbose_name_plural = 'Productos'
@@ -159,6 +206,16 @@ class Producto(models.Model):
                 {'stock_actual': 'El stock actual no puede ser negativo si no se permite stock negativo.'}
             )
         super().clean()
+
+    def save(self, *args, **kwargs):
+        user = crum.get_current_user()
+        if user and not user.pk:
+            user = None
+
+        if self._state.adding:  # New object being created
+            self.user_creation = user
+        self.user_updated = user
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'{self.codigo} — {self.nombre}'
@@ -240,6 +297,24 @@ class CabeceraFactura(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Auditoría automática
+    user_creation = models.ForeignKey(
+        'Usuario',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='%(class)s_creation',
+        verbose_name='Creado por'
+    )
+    user_updated = models.ForeignKey(
+        'Usuario',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='%(class)s_updated',
+        verbose_name='Actualizado por'
+    )
+
     class Meta:
         verbose_name = 'Factura'
         verbose_name_plural = 'Facturas'
@@ -266,6 +341,16 @@ class CabeceraFactura(models.Model):
                 ),
             })
         super().clean()
+
+    def save(self, *args, **kwargs):
+        user = crum.get_current_user()
+        if user and not user.pk:
+            user = None
+
+        if self._state.adding:  # New object being created
+            self.user_creation = user
+        self.user_updated = user
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'{self.numero_factura} — {self.cliente.nombre_razon_social}'
