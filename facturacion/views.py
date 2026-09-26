@@ -717,6 +717,24 @@ class ReportSaleView(ValidarPermisosMixin, LoginRequiredMixin, TemplateView):
     permission_required = ('facturacion.view_report',)
     template_name = 'facturacion/report.html'
 
+    def get(self, request, *args, **kwargs):
+        """Handle initial page load - default to current month."""
+        from django.utils import timezone
+        from datetime import datetime
+        
+        # Default to current month
+        now = timezone.now()
+        start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        end_of_month = (start_of_month.replace(month=start_of_month.month + 1) 
+                        if start_of_month.month < 12 
+                        else start_of_month.replace(year=start_of_month.year + 1, month=1))
+        
+        # Store defaults in context for template
+        context = self.get_context_data(**kwargs)
+        context['default_start_date'] = start_of_month.strftime('%Y-%m-%d')
+        context['default_end_date'] = end_of_month.strftime('%Y-%m-%d')
+        return self.render_to_response(context)
+
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
 

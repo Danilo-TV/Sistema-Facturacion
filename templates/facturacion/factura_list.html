@@ -48,6 +48,11 @@
                             <a href="{% url 'facturacion:factura_detail' f.pk %}" class="btn btn-sm btn-info" title="Ver">
                                 <i class="fas fa-eye"></i>
                             </a>
+                            {% if perms.facturacion.delete_cabecerafactura or user.is_superuser %}
+                            <a href="{% url 'facturacion:factura_delete' f.pk %}" class="btn btn-sm btn-danger btn-delete-factura" title="Eliminar" data-factura="{{ f.numero_factura }}">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}
@@ -65,8 +70,16 @@
 </div>
 {% endblock %}
 {% block extra_js %}
+<!-- moment.js for datetime sorting -->
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/min/moment-with-locales.min.js"></script>
+<!-- DataTables datetime-moment plugin -->
+<script src="https://cdn.datatables.net/plug-ins/1.13.7/sorting/datetime-moment.js"></script>
 <script>
 $(document).ready(function() {
+    // Configure moment for Spanish locale and date format
+    moment.locale('es');
+    $.fn.dataTable.moment('DD/MM/YYYY HH:mm');
+
     $('#tabla-facturas').DataTable({
         language: { url: '//cdn.datatables.net/plug-ins/1.13/i18n/es-ES.json' },
         pageLength: 25,
@@ -75,8 +88,32 @@ $(document).ready(function() {
         order: [[2, 'desc']],
         columnDefs: [
             { orderable: false, targets: [8] },
-            { className: 'text-right', targets: [5,6] }
+            { className: 'text-right', targets: [5,6] },
+            // Ensure proper date sorting for column 2 (fecha_emision)
+            { type: 'datetime-moment', targets: 2 }
         ]
+    });
+
+    // SweetAlert2 confirmation for delete buttons
+    $(document).on('click', '.btn-delete-factura', function(e) {
+        e.preventDefault();
+        var url = $(this).attr('href');
+        var facturaNum = $(this).data('factura');
+        
+        Swal.fire({
+            title: '¿Eliminar factura?',
+            html: 'Se eliminará la factura <strong>' + facturaNum + '</strong>.<br>Esta acción no se puede deshacer.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = url;
+            }
+        });
     });
 });
 </script>
