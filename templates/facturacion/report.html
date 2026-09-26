@@ -19,7 +19,7 @@
         <div class="form-row align-items-center">
             <div class="col-auto">
                 <label for="date_range" class="sr-only">Rango de Fechas</label>
-                <input type="text" id="date_range" class="form-control" style="min-width: 280px; cursor: pointer;" placeholder="Seleccionar rango de fechas" readonly>
+                <input type="text" id="date_range" class="form-control" style="min-width: 280px; cursor: pointer;" placeholder="Seleccionar rango de fechas" readonly value="">
             </div>
             <div class="col-auto">
                 <button type="button" id="btn_search" class="btn btn-primary">
@@ -100,17 +100,8 @@
 $(document).ready(function() {
     moment.locale('es');
 
-    // Initialize daterangepicker with current month
-    var start = moment().startOf('month');
-    var end = moment().endOf('month');
-
-    function cb(start, end) {
-        $('#date_range').val(start.format('DD/MM/YYYY') + ' - ' + end.format('DD/MM/YYYY'));
-    }
-
+    // Initialize daterangepicker without default dates
     $('#date_range').daterangepicker({
-        startDate: start,
-        endDate: end,
         locale: {
             format: 'DD/MM/YYYY',
             separator: ' - ',
@@ -132,9 +123,9 @@ $(document).ready(function() {
             'Este mes': [moment().startOf('month'), moment().endOf('month')],
             'Mes anterior': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
         }
-    }, cb);
-
-    cb(start, end);
+    }, function(start, end) {
+        $('#date_range').val(start.format('DD/MM/YYYY') + ' - ' + end.format('DD/MM/YYYY'));
+    });
 
     // DataTable
     var table = $('#sale_table').DataTable({
@@ -195,9 +186,17 @@ $(document).ready(function() {
 
     // Search function
     function loadReport() {
-        var dates = $('#date_range').val().split(' - ');
-        var startDate = dates[0].split('/').reverse().join('-');
-        var endDate = dates[1].split('/').reverse().join('-');
+        var dateVal = $('#date_range').val().trim();
+        var startDate = '';
+        var endDate = '';
+        
+        if (dateVal) {
+            var dates = dateVal.split(' - ');
+            if (dates.length === 2) {
+                startDate = dates[0].split('/').reverse().join('-');
+                endDate = dates[1].split('/').reverse().join('-');
+            }
+        }
 
         $.ajax({
             url: '{% url "facturacion:report_sale" %}',
@@ -225,8 +224,13 @@ $(document).ready(function() {
         });
     }
 
-    // Auto-load on date pick
+    // Auto-load on date pick (when user applies a range)
     $('#date_range').on('apply.daterangepicker', function() {
+        loadReport();
+    });
+
+    // Also load when user clears the date range (cancel)
+    $('#date_range').on('cancel.daterangepicker', function() {
         loadReport();
     });
 
@@ -234,9 +238,6 @@ $(document).ready(function() {
     $('#btn_search').on('click', function() {
         loadReport();
     });
-
-    // Initial load
-    loadReport();
 });
 </script>
 {% endblock %}
