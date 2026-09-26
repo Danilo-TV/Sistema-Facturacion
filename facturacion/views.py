@@ -768,7 +768,10 @@ class ReportSaleView(ValidarPermisosMixin, LoginRequiredMixin, TemplateView):
         If no dates provided, return ALL invoices (pagadas).
         If dates provided, filter by date range.
         """
-        queryset = CabeceraFactura.objects.filter(estatus='pagada').select_related('cliente')
+        # Use case-insensitive filter to match 'pagada' regardless of case in DB
+        queryset = CabeceraFactura.objects.filter(
+            estatus__iexact=CabeceraFactura.Estatus.PAGADA
+        ).select_related('cliente')
         
         if start_datetime and end_datetime:
             queryset = queryset.filter(
