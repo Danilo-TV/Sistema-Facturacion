@@ -237,7 +237,26 @@ $(document).ready(function() {
     // Manual search via button
     $('#btn_search').on('click', function() {
         loadReport();
-    });
+});
+});
+
+// Auto-load on page load - load all invoices immediately
+loadReport();
+
+// Auto-load on date pick (when user applies a range)
+$('#date_range').on('apply.daterangepicker', function() {
+    loadReport();
+});
+
+// Also load when user clears the date range (cancel)
+$('#date_range').on('cancel.daterangepicker', function() {
+    loadReport();
+});
+
+// Manual search via button
+$('#btn_search').on('click', function() {
+    loadReport();
+});
 });
 </script>
 {% endblock %}
