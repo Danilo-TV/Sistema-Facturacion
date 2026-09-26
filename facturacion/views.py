@@ -720,20 +720,43 @@ class ReportSaleView(ValidarPermisosMixin, LoginRequiredMixin, TemplateView):
     def get(self, request, *args, **kwargs):
         """Handle initial page load - default to current month."""
         from django.utils import timezone
-        from datetime import datetime
-        
         # Default to current month
-        now = timezone.now()
-        start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        end_of_month = (start_of_month.replace(month=start_of_month.month + 1) 
-                        if start_of_month.month < 12 
-                        else start_of_month.replace(year=start_of_month.year + 1, month=1))
+        start_date = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0).date()
+        end_date = (timezone.now().replace(day=1) + timezone.timedelta(days=32)).replace(day=1) - timezone.timedelta(days=1)
         
-        # Store defaults in context for template
-        context = self.get_context_data(**kwargs)
-        context['default_start_date'] = start_of_month.strftime('%Y-%m-%d')
-        context['default_end_date'] = end_of_month.strftime('%Y-%m-%d')
-        return self.render_to_response(context)
+        # Filter pagadas for current month
+        queryset = CabeceraFactura.objects.filter(
+            estatus='pagada',
+            fecha_emision__date__gte=start_date,
+            fecha_emision__date__lte=end_date,
+        ).select_related('cliente')
+
+        totals = queryset.aggregate(
+            subtotal_usd=Sum('subtotal_usd'),
+            monto_iva_usd=Sum('monto_iva_usd'),
+            total_usd=Sum('total_usd'),
+        )
+
+        data = []
+        for f in queryset:
+            data.append({
+                'numero': f.numero_factura,
+                'fecha': f.fecha_emision.strftime('%d/%m/%Y'),
+                'cliente': f.cliente.nombre_razon_social,
+                'tipo': f.get_tipo_documento_display(),
+                'total_bs': float(f.total_bs),
+                'total_usd': float(f.total_usd),
+                'estatus': f.get_estatus_display(),
+            })
+
+        return JsonResponse({
+            'data': data,
+            'totals': {
+                'subtotal_usd': float(totals['subtotal_usd'] or 0),
+                'monto_iva_usd': float(totals['monto_iva_usd'] or 0),
+                'total_usd': float(totals['total_usd'] or 0),
+            },
+        })
 
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
