@@ -100,9 +100,9 @@
 $(document).ready(function() {
     moment.locale('es');
 
-    // Initialize daterangepicker with last 30 days
-    var start = moment().subtract(29, 'days');
-    var end = moment();
+    // Initialize daterangepicker with current month
+    var start = moment().startOf('month');
+    var end = moment().endOf('month');
 
     function cb(start, end) {
         $('#date_range').val(start.format('DD/MM/YYYY') + ' - ' + end.format('DD/MM/YYYY'));

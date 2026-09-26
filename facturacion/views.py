@@ -717,6 +717,47 @@ class ReportSaleView(ValidarPermisosMixin, LoginRequiredMixin, TemplateView):
     permission_required = ('facturacion.view_report',)
     template_name = 'facturacion/report.html'
 
+    def get(self, request, *args, **kwargs):
+        """Handle initial page load - default to current month."""
+        from django.utils import timezone
+        # Default to current month
+        start_date = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0).date()
+        end_date = (timezone.now().replace(day=1) + timezone.timedelta(days=32)).replace(day=1) - timezone.timedelta(days=1)
+        
+        # Filter pagadas for current month
+        queryset = CabeceraFactura.objects.filter(
+            estatus='pagada',
+            fecha_emision__date__gte=start_date,
+            fecha_emision__date__lte=end_date,
+        ).select_related('cliente')
+
+        totals = queryset.aggregate(
+            subtotal_usd=Sum('subtotal_usd'),
+            monto_iva_usd=Sum('monto_iva_usd'),
+            total_usd=Sum('total_usd'),
+        )
+
+        data = []
+        for f in queryset:
+            data.append({
+                'numero': f.numero_factura,
+                'fecha': f.fecha_emision.strftime('%d/%m/%Y'),
+                'cliente': f.cliente.nombre_razon_social,
+                'tipo': f.get_tipo_documento_display(),
+                'total_bs': float(f.total_bs),
+                'total_usd': float(f.total_usd),
+                'estatus': f.get_estatus_display(),
+            })
+
+        return JsonResponse({
+            'data': data,
+            'totals': {
+                'subtotal_usd': float(totals['subtotal_usd'] or 0),
+                'monto_iva_usd': float(totals['monto_iva_usd'] or 0),
+                'total_usd': float(totals['total_usd'] or 0),
+            },
+        })
+
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
 
