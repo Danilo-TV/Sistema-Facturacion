@@ -329,6 +329,40 @@ class FacturaPdfView(ValidarPermisosMixin, LoginRequiredMixin, DetailView):
         return response
 
 
+class FacturaDeleteView(ValidarPermisosMixin, LoginRequiredMixin, DeleteView):
+    """Elimina una factura y restaura stock (inventario inverso).
+    
+    Solo restaura stock si la factura estaba en estatus PAGADA, ya que
+    solo las facturas PAGADAS descontaron stock al crearse.
+    """
+    permission_required = ('facturacion.delete_cabecerafactura',)
+    model = CabeceraFactura
+    template_name = 'facturacion/factura_confirm_delete.html'
+    success_url = reverse_lazy('facturacion:factura_list')
+
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .select_related('cliente')
+            .prefetch_related('detalles__producto')
+        )
+
+    def form_valid(self, form):
+        factura = self.get_object()
+        
+        # Solo restaurar stock si la factura estaba PAGADA
+        if factura.estatus == CabeceraFactura.Estatus.PAGADA:
+            with transaction.atomic():
+                for detalle in factura.detalles.all():
+                    producto = detalle.producto
+                    producto.stock_actual += detalle.cantidad
+                    producto.save(update_fields=['stock_actual'])
+        
+        messages.success(self.request, 'Factura eliminada exitosamente y stock restaurado.')
+        return super().form_valid(form)
+
+
 class FacturaCreateView(ValidarPermisosMixin, LoginRequiredMixin, TemplateView):
     """Vista principal de creación de facturas.
 
@@ -570,17 +604,36 @@ class ClienteSearchAJAXView(ValidarPermisosMixin, LoginRequiredMixin, View):
 
 class ProductoSearchAJAXView(ValidarPermisosMixin, LoginRequiredMixin, View):
     permission_required = ('facturacion.view_producto',)
-    """Endpoint para Select2: busca productos por código o nombre."""
+    """Endpoint para Select2: busca productos por código o nombre.
+    
+    Solo retorna productos con stock > 0 (o que permitan stock negativo).
+    Parámetro opcional `excluir_ids` para excluir productos ya agregados a la factura.
+    """
 
     def get(self, request, *args, **kwargs):
         q = request.GET.get('q', '').strip()
         if len(q) < 1:
             return JsonResponse({'items': []})
 
-        productos = Producto.objects.filter(is_active=True).filter(
+        # Parse excluir_ids (comma-separated UUIDs)
+        excluir_ids = request.GET.get('excluir_ids', '').strip()
+        excluir_set = set()
+        if excluir_ids:
+            excluir_set = {uid.strip() for uid in excluir_ids.split(',') if uid.strip()}
+
+        # Base queryset: productos activos con stock > 0 o que permitan stock negativo
+        queryset = Producto.objects.filter(is_active=True).filter(
+            models.Q(stock_actual__gt=0) | models.Q(permite_stock_negativo=True)
+        ).filter(
             models.Q(codigo__icontains=q) |
             models.Q(nombre__icontains=q)
-        ).only(
+        )
+
+        # Excluir IDs si se proporcionaron
+        if excluir_set:
+            queryset = queryset.exclude(id__in=excluir_set)
+
+        productos = queryset.only(
             'id', 'codigo', 'nombre', 'precio_bs', 'precio_usd',
             'stock_actual', 'permite_stock_negativo',
         )[:15]

@@ -4,7 +4,7 @@ from decimal import Decimal
 import crum
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 
 
 # ---------------------------------------------------------------------------
@@ -354,6 +354,20 @@ class CabeceraFactura(models.Model):
 
     def __str__(self):
         return f'{self.numero_factura} — {self.cliente.nombre_razon_social}'
+
+    def delete(self, *args, **kwargs):
+        """Override delete to restore stock (inventario inverso).
+        
+        Solo restaura stock si la factura estaba en estatus PAGADA,
+        ya que solo las facturas PAGADAS descontaron stock al crearse.
+        """
+        if self.estatus == self.Estatus.PAGADA:
+            with transaction.atomic():
+                for detalle in self.detalles.all():
+                    producto = detalle.producto
+                    producto.stock_actual += detalle.cantidad
+                    producto.save(update_fields=['stock_actual'])
+        super().delete(*args, **kwargs)
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,37 @@
+{% extends 'facturacion/base.html' %}
+{% block title %}Eliminar Factura — Facturación{% endblock %}
+{% block page_title %}Eliminar Factura{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0"><i class="fas fa-exclamation-triangle mr-2"></i>Confirmar Eliminación</h4>
+            </div>
+            <div class="card-body text-center py-5">
+                <i class="fas fa-trash-alt fa-4x text-danger mb-3"></i>
+                <h5>¿Está seguro de eliminar la factura?</h5>
+                <p class="lead"><strong>{{ object.numero_factura }} — {{ object.cliente.nombre_razon_social }}</strong></p>
+                <p class="text-muted">Esta acción no se puede deshacer.</p>
+                {% if object.estatus == 'pagada' %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    <strong>Se restaurará el stock</strong> de los productos de esta factura (estatus: Pagada).
+                </div>
+                {% endif %}
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-center">
+                        <a href="{% url 'facturacion:factura_list' %}" class="btn btn-secondary mr-2">
+                            <i class="fas fa-times"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-danger ml-2">
+                            <i class="fas fa-trash"></i> Eliminar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

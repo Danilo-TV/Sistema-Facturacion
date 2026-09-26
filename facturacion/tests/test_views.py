@@ -2,12 +2,15 @@ import json
 from decimal import Decimal
 
 import pytest
+from django.db import transaction
 from django.urls import reverse
 
 from facturacion.models import CabeceraFactura, DetalleVenta, Producto
 from facturacion.tests.conftest import usuario_con_permisos
 from facturacion.tests.factories import (
+    CabeceraFacturaFactory,
     ClienteFactory,
+    DetalleVentaFactory,
     ProductoFactory,
     UsuarioFactory,
 )
@@ -161,6 +164,46 @@ class TestAJAXSeguridad:
         response = client.get(reverse('facturacion:cliente_search') + '?q=a')
         data = response.json()
         assert data['items'] == []
+
+    @pytest.mark.django_db
+    def test_producto_search_filtra_stock_cero(self, client):
+        """ProductoSearchAJAXView no debe retornar productos con stock=0 y sin permite_stock_negativo."""
+        usuario = usuario_con_permisos('view_producto')
+        # Producto con stock > 0
+        ProductoFactory(codigo='PROD-001', nombre='Con Stock', stock_actual=10, permite_stock_negativo=False)
+        # Producto con stock = 0
+        ProductoFactory(codigo='PROD-002', nombre='Sin Stock', stock_actual=0, permite_stock_negativo=False)
+        # Producto con stock = 0 pero permite_stock_negativo=True
+        ProductoFactory(codigo='PROD-003', nombre='Negativo OK', stock_actual=0, permite_stock_negativo=True)
+        
+        client.force_login(usuario)
+        response = client.get(reverse('facturacion:producto_search') + '?q=PROD')
+        data = response.json()
+        
+        # Solo debe retornar "Con Stock" y "Negativo OK"
+        assert len(data['items']) == 2
+        codigos = {item['text'].split(' — ')[0] for item in data['items']}
+        assert 'PROD-001' in codigos
+        assert 'PROD-003' in codigos
+        assert 'PROD-002' not in codigos
+
+    @pytest.mark.django_db
+    def test_producto_search_excluir_ids(self, client):
+        """ProductoSearchAJAXView debe excluir IDs proporcionados en excluir_ids."""
+        usuario = usuario_con_permisos('view_producto')
+        p1 = ProductoFactory(codigo='PROD-001', nombre='Producto Uno', stock_actual=10)
+        p2 = ProductoFactory(codigo='PROD-002', nombre='Producto Dos', stock_actual=10)
+        p3 = ProductoFactory(codigo='PROD-003', nombre='Producto Tres', stock_actual=10)
+        
+        client.force_login(usuario)
+        # Excluir p1 y p2
+        excluir = f'{p1.pk},{p2.pk}'
+        response = client.get(reverse('facturacion:producto_search') + f'?q=PROD&excluir_ids={excluir}')
+        data = response.json()
+        
+        # Solo debe retornar p3
+        assert len(data['items']) == 1
+        assert data['items'][0]['id'] == str(p3.pk)
 
 
 # ======================================================================
@@ -529,3 +572,123 @@ class TestDescuentoEnCreacionFactura:
         response = client.post(url, data=json.dumps(payload), content_type='application/json')
         assert response.status_code == 400
         assert 'descuento' in response.json()['error'].lower()
+
+
+# ======================================================================
+# INVENTARIO INVERSO — Restaurar stock al eliminar factura
+# ======================================================================
+
+
+class TestInventarioInverso:
+    """Pruebas para el inventario inverso al eliminar facturas."""
+
+    @pytest.mark.django_db
+    def test_restaura_stock_al_eliminar_factura(self, client):
+        """Al eliminar una factura PAGADA, el stock debe restaurarse."""
+        usuario = usuario_con_permisos('delete_cabecerafactura')
+        cliente_obj = ClienteFactory()
+        
+        # Crear producto con stock inicial
+        producto = ProductoFactory(stock_actual=100)
+        stock_inicial = producto.stock_actual
+        
+        # Crear factura PAGADA con 3 unidades (stock baja a 97)
+        factura = CabeceraFacturaFactory(
+            cliente=cliente_obj,
+            usuario=usuario,
+            estatus=CabeceraFactura.Estatus.PAGADA,
+        )
+        DetalleVentaFactory(
+            cabecera=factura,
+            producto=producto,
+            cantidad=3,
+        )
+        
+        # Simular deducción de stock (lo que hace FacturaCreateView)
+        producto.stock_actual -= 3
+        producto.save(update_fields=['stock_actual'])
+        
+        producto.refresh_from_db()
+        assert producto.stock_actual == stock_inicial - 3  # 97
+        
+        # Eliminar la factura via DELETE view
+        client.force_login(usuario)
+        url = reverse('facturacion:factura_delete', kwargs={'pk': factura.pk})
+        response = client.post(url)
+        assert response.status_code == 302  # Redirect after delete
+        
+        # Verificar que el stock se restauró
+        producto.refresh_from_db()
+        assert producto.stock_actual == stock_inicial  # 100
+
+    @pytest.mark.django_db
+    def test_no_restaura_stock_si_factura_no_pagada(self, client):
+        """Al eliminar factura BORRADOR o CANCELADA, NO debe restaurar stock."""
+        usuario = usuario_con_permisos('delete_cabecerafactura')
+        cliente_obj = ClienteFactory()
+        
+        for estatus in [CabeceraFactura.Estatus.BORRADOR, CabeceraFactura.Estatus.CANCELADA]:
+            # Crear producto con stock inicial
+            producto = ProductoFactory(stock_actual=50)
+            stock_inicial = producto.stock_actual
+            
+            # Crear factura NO pagada
+            factura = CabeceraFacturaFactory(
+                cliente=cliente_obj,
+                usuario=usuario,
+                estatus=estatus,
+            )
+            DetalleVentaFactory(
+                cabecera=factura,
+                producto=producto,
+                cantidad=5,
+            )
+            
+            # El stock NO debería haber cambiado al crear (solo PAGADA descuenta)
+            producto.refresh_from_db()
+            assert producto.stock_actual == stock_inicial  # Sin cambios
+            
+            # Eliminar la factura
+            client.force_login(usuario)
+            url = reverse('facturacion:factura_delete', kwargs={'pk': factura.pk})
+            response = client.post(url)
+            assert response.status_code == 302
+            
+            # Verificar que el stock NO cambió
+            producto.refresh_from_db()
+            assert producto.stock_actual == stock_inicial  # Sin cambios
+
+    @pytest.mark.django_db
+    def test_delete_model_override_restaura_stock(self, client):
+        """El método delete() del modelo CabeceraFactura también restaura stock."""
+        usuario = usuario_con_permisos('delete_cabecerafactura')
+        cliente_obj = ClienteFactory()
+        
+        producto = ProductoFactory(stock_actual=200)
+        stock_inicial = producto.stock_actual
+        
+        factura = CabeceraFacturaFactory(
+            cliente=cliente_obj,
+            usuario=usuario,
+            estatus=CabeceraFactura.Estatus.PAGADA,
+        )
+        DetalleVentaFactory(
+            cabecera=factura,
+            producto=producto,
+            cantidad=10,
+        )
+        
+        # Simular deducción de stock (lo que hace FacturaCreateView)
+        producto.stock_actual -= 10
+        producto.save(update_fields=['stock_actual'])
+        
+        producto.refresh_from_db()
+        assert producto.stock_actual == stock_inicial - 10  # 190
+        
+        # Llamar directamente al método delete() del modelo
+        with transaction.atomic():
+            factura.delete()
+        
+        # Verificar que el stock se restauró
+        producto.refresh_from_db()
+        assert producto.stock_actual == stock_inicial  # 200
