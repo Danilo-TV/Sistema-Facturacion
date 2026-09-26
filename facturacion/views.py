@@ -720,7 +720,7 @@ class ReportSaleView(ValidarPermisosMixin, LoginRequiredMixin, TemplateView):
     def get(self, request, *args, **kwargs):
         """Handle initial page load.
         
-        If AJAX request (X-Requested-With header or format=json), return JSON with current month data.
+        If AJAX request (X-Requested-With header or format=json), return JSON with ALL invoices.
         Otherwise, render the HTML template.
         """
         is_ajax = (
@@ -740,85 +740,44 @@ class ReportSaleView(ValidarPermisosMixin, LoginRequiredMixin, TemplateView):
             start_date = request.POST.get('start_date')
             end_date = request.POST.get('end_date')
 
-            # Parse dates from 'YYYY-MM-DD' to timezone-aware datetime objects
-            # Use America/Caracas timezone (project's TIME_ZONE)
-            import pytz
-            from django.utils import timezone
+            # Parse dates only if both are provided
+            start_datetime = None
+            end_datetime = None
             
-            caracas_tz = pytz.timezone('America/Caracas')
-            
-            # Start of day (00:00:00)
-            start_naive = timezone.datetime.strptime(start_date, '%Y-%m-%d')
-            start_datetime = caracas_tz.localize(start_naive)
-            
-            # End of day (23:59:59.999999)
-            end_naive = timezone.datetime.strptime(end_date, '%Y-%m-%d')
-            end_datetime = caracas_tz.localize(end_naive.replace(hour=23, minute=59, second=59, microsecond=999999))
+            if start_date and end_date:
+                import pytz
+                from django.utils import timezone
+                
+                caracas_tz = pytz.timezone('America/Caracas')
+                
+                # Start of day (00:00:00)
+                start_naive = timezone.datetime.strptime(start_date, '%Y-%m-%d')
+                start_datetime = caracas_tz.localize(start_naive)
+                
+                # End of day (23:59:59.999999)
+                end_naive = timezone.datetime.strptime(end_date, '%Y-%m-%d')
+                end_datetime = caracas_tz.localize(end_naive.replace(hour=23, minute=59, second=59, microsecond=999999))
 
-            # Filter using datetime range (not __date)
-            queryset = CabeceraFactura.objects.filter(
-                estatus='pagada',
-                fecha_emision__gte=start_datetime,
-                fecha_emision__lte=end_datetime,
-            ).select_related('cliente')
-
-            # Aggregate totals
-            totals = queryset.aggregate(
-                subtotal_usd=Sum('subtotal_usd'),
-                monto_iva_usd=Sum('monto_iva_usd'),
-                total_usd=Sum('total_usd'),
-                total_bs=Sum('total_bs'),
-            )
-
-            data = []
-            for f in queryset:
-                data.append({
-                    'numero': f.numero_factura,
-                    'fecha': f.fecha_emision.strftime('%d/%m/%Y'),
-                    'cliente': f.cliente.nombre_razon_social,
-                    'tipo': f.get_tipo_documento_display(),
-                    'total_bs': float(f.total_bs),
-                    'total_usd': float(f.total_usd),
-                    'estatus': f.get_estatus_display(),
-                })
-
-            return JsonResponse({
-                'data': data,
-                'totals': {
-                    'subtotal_usd': float(totals['subtotal_usd'] or 0),
-                    'monto_iva_usd': float(totals['monto_iva_usd'] or 0),
-                    'total_usd': float(totals['total_usd'] or 0),
-                    'total_bs': float(totals['total_bs'] or 0),
-                },
-            })
+            return self._get_report_data(request, start_datetime, end_datetime)
 
         return JsonResponse({'error': 'Acción no válida'}, status=400)
 
-    def _get_report_data(self, request):
-        """Return JSON report data for current month (used by AJAX GET)."""
-        from django.utils import timezone
-        import pytz
+    def _get_report_data(self, request, start_datetime=None, end_datetime=None):
+        """Return JSON report data. 
         
-        caracas_tz = pytz.timezone('America/Caracas')
-        now = timezone.now().astimezone(caracas_tz)
+        If no dates provided, return ALL invoices (pagadas).
+        If dates provided, filter by date range.
+        """
+        queryset = CabeceraFactura.objects.filter(estatus='pagada').select_related('cliente')
         
-        # Start of current month
-        start_naive = timezone.datetime(now.year, now.month, 1, 0, 0, 0)
-        start_datetime = caracas_tz.localize(start_naive)
+        if start_datetime and end_datetime:
+            queryset = queryset.filter(
+                fecha_emision__gte=start_datetime,
+                fecha_emision__lte=end_datetime,
+            )
         
-        # End of current month
-        if now.month == 12:
-            next_month = timezone.datetime(now.year + 1, 1, 1, 0, 0, 0)
-        else:
-            next_month = timezone.datetime(now.year, now.month + 1, 1, 0, 0, 0)
-        end_naive = next_month - timezone.timedelta(microseconds=1)
-        end_datetime = caracas_tz.localize(end_naive)
-
-        queryset = CabeceraFactura.objects.filter(
-            estatus='pagada',
-            fecha_emision__gte=start_datetime,
-            fecha_emision__lte=end_datetime,
-        ).select_related('cliente')
+        # Order by newest first (like invoice list)
+        queryset = queryset.order_by('-fecha_emision')
 
         totals = queryset.aggregate(
             subtotal_usd=Sum('subtotal_usd'),
