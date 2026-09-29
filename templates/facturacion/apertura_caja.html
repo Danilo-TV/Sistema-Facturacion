@@ -1,0 +1,44 @@
+{% extends 'facturacion/base.html' %}
+{% block title %}Apertura de Caja — Facturación{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="fas fa-{{ icono }} mr-2"></i>{{ titulo }}</h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info mb-4">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    Ingrese el monto inicial de fondo de caja (efectivo) con el que comienza el turno.
+                    Este monto se usará como base para el arqueo al cierre de caja.
+                </div>
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label class="control-label">Monto Inicial (Bs) <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text">Bs</span>
+                            </div>
+                            <input type="number" name="monto_inicial" step="0.01" min="0" class="form-control form-control-lg" value="{{ form.monto_inicial.value|default:'' }}" required autofocus>
+                            {% if form.monto_inicial.errors %}
+                                <div class="text-danger small">{{ form.monto_inicial.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="mt-4 d-flex justify-content-between">
+                        <a href="{% url 'facturacion:dashboard' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-cash-register"></i> Abrir Caja
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
