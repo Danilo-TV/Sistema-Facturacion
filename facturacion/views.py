@@ -745,18 +745,18 @@ class ReportSaleView(ValidarPermisosMixin, LoginRequiredMixin, TemplateView):
             end_datetime = None
             
             if start_date and end_date:
-                import pytz
                 from django.utils import timezone
+                from zoneinfo import ZoneInfo
                 
-                caracas_tz = pytz.timezone('America/Caracas')
+                caracas_tz = ZoneInfo('America/Caracas')
                 
                 # Start of day (00:00:00)
                 start_naive = timezone.datetime.strptime(start_date, '%Y-%m-%d')
-                start_datetime = caracas_tz.localize(start_naive)
+                start_datetime = start_naive.replace(tzinfo=caracas_tz)
                 
                 # End of day (23:59:59.999999)
                 end_naive = timezone.datetime.strptime(end_date, '%Y-%m-%d')
-                end_datetime = caracas_tz.localize(end_naive.replace(hour=23, minute=59, second=59, microsecond=999999))
+                end_datetime = end_naive.replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=caracas_tz)
 
                 return self._get_report_data(request, start_datetime, end_datetime)
             
