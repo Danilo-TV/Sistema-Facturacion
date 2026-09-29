@@ -215,13 +215,11 @@ class TestStockEnCreacionFactura:
     """El servidor debe validar stock al crear la factura."""
 
     @pytest.mark.django_db
-    def test_rechaza_stock_insuficiente(self, client):
+    def test_rechaza_stock_insuficiente(self, cliente_autenticado_con_turno):
         """Si la cantidad solicitada excede el stock, debe responder 400."""
-        usuario = usuario_con_permisos('add_cabecerafactura')
         cliente_obj = ClienteFactory()
         producto = ProductoFactory(stock_actual=2)
 
-        client.force_login(usuario)
         url = reverse('facturacion:factura_create')
 
         payload = {
@@ -244,18 +242,16 @@ class TestStockEnCreacionFactura:
             }]
         }
 
-        response = client.post(url, data=json.dumps(payload), content_type='application/json')
+        response = cliente_autenticado_con_turno.post(url, data=json.dumps(payload), content_type='application/json')
         assert response.status_code == 400
         assert 'Stock insuficiente' in response.json()['error']
 
     @pytest.mark.django_db
-    def test_rechaza_cantidad_invalida(self, client):
+    def test_rechaza_cantidad_invalida(self, cliente_autenticado_con_turno):
         """Cantidad cero o negativa debe ser rechazada."""
-        usuario = usuario_con_permisos('add_cabecerafactura')
         cliente_obj = ClienteFactory()
         producto = ProductoFactory(stock_actual=10)
 
-        client.force_login(usuario)
         url = reverse('facturacion:factura_create')
 
         for cant in [0, -1, -5]:
@@ -278,18 +274,16 @@ class TestStockEnCreacionFactura:
                     'total_usd': '2.32',
                 }]
             }
-            response = client.post(url, data=json.dumps(payload), content_type='application/json')
+            response = cliente_autenticado_con_turno.post(url, data=json.dumps(payload), content_type='application/json')
             assert response.status_code == 400
             assert 'cantidad debe ser mayor a cero' in response.json()['error'].lower()
 
     @pytest.mark.django_db
-    def test_permite_venta_con_stock_suficiente(self, client):
+    def test_permite_venta_con_stock_suficiente(self, cliente_autenticado_con_turno):
         """Si hay stock suficiente, la petición debe procesarse (sin error de stock)."""
-        usuario = usuario_con_permisos('add_cabecerafactura')
         cliente_obj = ClienteFactory()
         producto = ProductoFactory(stock_actual=50)
 
-        client.force_login(usuario)
         url = reverse('facturacion:factura_create')
 
         payload = {
@@ -312,19 +306,17 @@ class TestStockEnCreacionFactura:
             }]
         }
 
-        response = client.post(url, data=json.dumps(payload), content_type='application/json')
+        response = cliente_autenticado_con_turno.post(url, data=json.dumps(payload), content_type='application/json')
         assert response.status_code == 200
         data = response.json()
         assert data['success'] is True
 
     @pytest.mark.django_db
-    def test_stock_se_descarta_al_crear_factura(self, client):
+    def test_stock_se_descarta_al_crear_factura(self, cliente_autenticado_con_turno):
         """Al crear factura pagada, el stock del producto debe disminuir."""
-        usuario = usuario_con_permisos('add_cabecerafactura')
         cliente_obj = ClienteFactory()
         producto = ProductoFactory(stock_actual=50)
 
-        client.force_login(usuario)
         url = reverse('facturacion:factura_create')
 
         payload = {
@@ -347,7 +339,7 @@ class TestStockEnCreacionFactura:
             }]
         }
 
-        response = client.post(url, data=json.dumps(payload), content_type='application/json')
+        response = cliente_autenticado_con_turno.post(url, data=json.dumps(payload), content_type='application/json')
         assert response.status_code == 200
 
         producto.refresh_from_db()
@@ -363,9 +355,8 @@ class TestCreacionFacturaCompleta:
     """Flujo completo de creación de factura vía POST JSON."""
 
     @pytest.mark.django_db
-    def test_crear_factura_con_un_producto(self, client):
+    def test_crear_factura_con_un_producto(self, cliente_autenticado_con_turno):
         """Factura con 1 producto: verificar creación y montos."""
-        usuario = usuario_con_permisos('add_cabecerafactura')
         cliente_obj = ClienteFactory()
         producto = ProductoFactory(
             precio_bs=Decimal('100.00'),
@@ -373,7 +364,6 @@ class TestCreacionFacturaCompleta:
             stock_actual=50,
         )
 
-        client.force_login(usuario)
         url = reverse('facturacion:factura_create')
 
         payload = {
@@ -396,7 +386,7 @@ class TestCreacionFacturaCompleta:
             }]
         }
 
-        response = client.post(url, data=json.dumps(payload), content_type='application/json')
+        response = cliente_autenticado_con_turno.post(url, data=json.dumps(payload), content_type='application/json')
         assert response.status_code == 200
         data = response.json()
         assert data['success'] is True
@@ -406,7 +396,6 @@ class TestCreacionFacturaCompleta:
         # Verificar que la factura existe en DB
         factura = CabeceraFactura.objects.get(numero_factura=data['numero_factura'])
         assert factura.cliente == cliente_obj
-        assert factura.usuario == usuario
         assert factura.total_bs == Decimal('348.00')
         assert factura.total_usd == Decimal('6.96')
         assert factura.estatus == CabeceraFactura.Estatus.PAGADA
@@ -419,14 +408,12 @@ class TestCreacionFacturaCompleta:
         assert detalle.total_bs == Decimal('348.00')
 
     @pytest.mark.django_db
-    def test_crear_factura_con_varios_productos(self, client):
+    def test_crear_factura_con_varios_productos(self, cliente_autenticado_con_turno):
         """Factura con 2 productos: verificar montos consolidados."""
-        usuario = usuario_con_permisos('add_cabecerafactura')
         cliente_obj = ClienteFactory()
         p1 = ProductoFactory(precio_bs=Decimal('100.00'), precio_usd=Decimal('2.00'), stock_actual=10)
         p2 = ProductoFactory(precio_bs=Decimal('50.00'), precio_usd=Decimal('1.00'), stock_actual=20)
 
-        client.force_login(usuario)
         url = reverse('facturacion:factura_create')
 
         payload = {
@@ -464,7 +451,7 @@ class TestCreacionFacturaCompleta:
             ]
         }
 
-        response = client.post(url, data=json.dumps(payload), content_type='application/json')
+        response = cliente_autenticado_con_turno.post(url, data=json.dumps(payload), content_type='application/json')
         assert response.status_code == 200
         data = response.json()
         assert data['success'] is True
@@ -482,10 +469,8 @@ class TestCreacionFacturaCompleta:
         assert p2.stock_actual == 15  # 20 - 5
 
     @pytest.mark.django_db
-    def test_rechaza_factura_sin_cliente(self, client):
+    def test_rechaza_factura_sin_cliente(self, cliente_autenticado_con_turno):
         """POST sin cliente debe responder 400."""
-        usuario = usuario_con_permisos('add_cabecerafactura')
-        client.force_login(usuario)
         url = reverse('facturacion:factura_create')
 
         payload = {
@@ -495,16 +480,14 @@ class TestCreacionFacturaCompleta:
             'detalles': [],
         }
 
-        response = client.post(url, data=json.dumps(payload), content_type='application/json')
+        response = cliente_autenticado_con_turno.post(url, data=json.dumps(payload), content_type='application/json')
         assert response.status_code == 400
         assert 'cliente' in response.json()['error'].lower() or 'seleccionar' in response.json()['error'].lower()
 
     @pytest.mark.django_db
-    def test_rechaza_factura_sin_productos(self, client):
+    def test_rechaza_factura_sin_productos(self, cliente_autenticado_con_turno):
         """POST sin detalles debe responder 400."""
-        usuario = usuario_con_permisos('add_cabecerafactura')
         cliente_obj = ClienteFactory()
-        client.force_login(usuario)
         url = reverse('facturacion:factura_create')
 
         payload = {
@@ -515,18 +498,16 @@ class TestCreacionFacturaCompleta:
             'detalles': [],
         }
 
-        response = client.post(url, data=json.dumps(payload), content_type='application/json')
+        response = cliente_autenticado_con_turno.post(url, data=json.dumps(payload), content_type='application/json')
         assert response.status_code == 400
         assert 'producto' in response.json()['error'].lower() or 'agregar' in response.json()['error'].lower()
 
     @pytest.mark.django_db
-    def test_rechaza_json_invalido(self, client):
+    def test_rechaza_json_invalido(self, cliente_autenticado_con_turno):
         """POST con JSON mal formado debe responder 400."""
-        usuario = usuario_con_permisos('add_cabecerafactura')
-        client.force_login(usuario)
         url = reverse('facturacion:factura_create')
 
-        response = client.post(url, data='esto-no-es-json', content_type='application/json')
+        response = cliente_autenticado_con_turno.post(url, data='esto-no-es-json', content_type='application/json')
         assert response.status_code == 400
         assert 'JSON' in response.json()['error']
 

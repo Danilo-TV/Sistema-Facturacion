@@ -31,6 +31,7 @@ from .models import (
     Cliente,
     DetalleVenta,
     Producto,
+    TurnoCaja,
     Usuario,
 )
 from .forms import UserForm
@@ -517,6 +518,19 @@ class FacturaCreateView(ValidarPermisosMixin, LoginRequiredMixin, TemplateView):
                 'total_usd': total_usd,
             })
 
+        # --- Validar turno de caja abierto ---
+        try:
+            turno_caja = TurnoCaja.objects.get(cajero=request.user, estatus=TurnoCaja.Estatus.ABIERTA)
+        except TurnoCaja.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'No tiene un turno de caja abierto. Debe abrir caja antes de facturar.',
+                'redirect_url': reverse('facturacion:apertura_caja')
+            }, status=400)
+        except TurnoCaja.MultipleObjectsReturned:
+            # Should not happen, but handle gracefully
+            turno_caja = TurnoCaja.objects.filter(cajero=request.user, estatus=TurnoCaja.Estatus.ABIERTA).first()
+
         # --- Crear factura (transacción atómica) ---
         try:
             with transaction.atomic():
@@ -524,6 +538,7 @@ class FacturaCreateView(ValidarPermisosMixin, LoginRequiredMixin, TemplateView):
                     numero_factura=numero_factura,
                     cliente=cliente,
                     usuario=request.user,
+                    turno_caja=turno_caja,
                     tipo_documento=tipo_documento,
                     estatus=CabeceraFactura.Estatus.PAGADA,
                     tasa_cambio=tasa_cambio,
@@ -559,6 +574,13 @@ class FacturaCreateView(ValidarPermisosMixin, LoginRequiredMixin, TemplateView):
                     producto = det['producto']
                     producto.stock_actual -= det['cantidad']
                     producto.save(update_fields=['stock_actual'])
+
+            # Actualizar totales del turno de caja
+            if factura.moneda_principal == 'bs':
+                turno_caja.monto_efectivo_sistema = (turno_caja.monto_efectivo_sistema or Decimal('0')) + factura.total_bs
+            else:
+                turno_caja.monto_tarjeta_sistema = (turno_caja.monto_tarjeta_sistema or Decimal('0')) + factura.total_usd
+            turno_caja.save(update_fields=['monto_efectivo_sistema', 'monto_tarjeta_sistema', 'updated_at'])
 
             return JsonResponse({
                 'success': True,
@@ -868,3 +890,135 @@ class UsuarioUpdateView(ValidarPermisosMixin, LoginRequiredMixin, UpdateView):
     def form_valid(self, form):
         messages.success(self.request, 'Usuario actualizado exitosamente.')
         return super().form_valid(form)
+
+
+# ======================================================================
+# TURNO CAJA — Apertura, Cierre y Historial
+# ======================================================================
+
+
+class AperturaCajaView(ValidarPermisosMixin, LoginRequiredMixin, CreateView):
+    """Apertura de caja - Ingreso del monto inicial (fondo de caja)."""
+    permission_required = ('facturacion.add_turnocaja',)
+    model = TurnoCaja
+    fields = ['monto_inicial']
+    template_name = 'facturacion/apertura_caja.html'
+    success_url = reverse_lazy('facturacion:factura_create')
+
+    def get(self, request, *args, **kwargs):
+        # Si ya tiene un turno abierto, redirigir al POS
+        turno_abierto = TurnoCaja.objects.filter(
+            cajero=request.user, estatus=TurnoCaja.Estatus.ABIERTA
+        ).first()
+        if turno_abierto:
+            messages.info(request, f'Ya tiene un turno abierto desde {turno_abierto.fecha_apertura.strftime("%d/%m/%Y %H:%M")}.')
+            return redirect('facturacion:factura_create')
+        return super().get(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        form.instance.cajero = self.request.user
+        form.instance.estatus = TurnoCaja.Estatus.ABIERTA
+        messages.success(self.request, 'Caja abierta exitosamente. Puede comenzar a facturar.')
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo'] = 'Apertura de Caja'
+        context['icono'] = 'cash-register'
+        return context
+
+
+class CierreCajaView(ValidarPermisosMixin, LoginRequiredMixin, UpdateView):
+    """Cierre de caja - Arqueo y declaración de efectivo/tarjeta."""
+    permission_required = ('facturacion.change_turnocaja',)
+    model = TurnoCaja
+    fields = ['efectivo_declarado', 'tarjeta_declarada', 'notas']
+    template_name = 'facturacion/cierre_caja.html'
+    success_url = reverse_lazy('facturacion:factura_create')
+
+    def get_queryset(self):
+        return TurnoCaja.objects.filter(cajero=self.request.user, estatus=TurnoCaja.Estatus.ABIERTA)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        turno = self.get_object()
+
+        # Calcular totales del sistema
+        facturas = TurnoCaja.objects.get(pk=turno.pk).facturas.filter(estatus=CabeceraFactura.Estatus.PAGADA)
+        
+        from django.db.models import Sum
+        totales = facturas.aggregate(
+            total_efectivo=Sum('total_bs'),
+            total_tarjeta=Sum('total_usd'),
+        )
+        
+        total_efectivo_sistema = totales['total_efectivo'] or Decimal('0')
+        total_tarjeta_sistema = totales['total_tarjeta'] or Decimal('0')
+        total_sistema = total_efectivo_sistema + total_tarjeta_sistema
+
+        # Calcular declarado (lo que tiene el cajero en mano)
+        efectivo_declarado = turno.efectivo_declarado or Decimal('0')
+        tarjeta_declarada = turno.tarjeta_declarada or Decimal('0')
+        total_declarado = efectivo_declarado + tarjeta_declarada
+
+        diferencia = total_declarado - total_sistema
+
+        context = super().get_context_data(**kwargs)
+        context['turno'] = turno
+        context['total_efectivo_sistema'] = total_efectivo_sistema
+        context['total_tarjeta_sistema'] = total_tarjeta_sistema
+        context['total_sistema'] = total_sistema
+        context['efectivo_declarado'] = efectivo_declarado
+        context['tarjeta_declarada'] = tarjeta_declarada
+        context['total_declarado'] = total_declarado
+        context['total_sistema'] = total_sistema
+        context['diferencia'] = diferencia
+        context['titulo'] = 'Cierre de Caja'
+        context['icono'] = 'cash-register'
+        return context
+
+    def form_valid(self, form):
+        turno = form.save(commit=False)
+        turno.estatus = TurnoCaja.Estatus.CERRADA
+        turno.fecha_cierre = timezone.now()
+        turno.save()
+        
+        # Calcular diferencia final
+        turno.refresh_from_db()
+        diferencia = (turno.efectivo_declarado or Decimal('0')) + (turno.tarjeta_declarada or Decimal('0')) - \
+                     ((turno.monto_efectivo_sistema or Decimal('0')) + (turno.monto_tarjeta_sistema or Decimal('0')))
+        turno.diferencia = diferencia
+        turno.save()
+        
+        if diferencia > 0:
+            messages.success(self.request, f'Caja cerrada exitosamente. Sobrante: Bs {diferencia:,.2f}')
+        elif diferencia < 0:
+            messages.warning(self.request, f'Caja cerrada exitosamente. Faltante: Bs {abs(diferencia):,.2f}')
+        else:
+            messages.success(self.request, 'Caja cerrada exitosamente. Cuadrada perfecta.')
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo'] = 'Cierre de Caja'
+        context['icono'] = 'cash-register'
+        return context
+
+
+class HistorialCierresView(ValidarPermisosMixin, LoginRequiredMixin, ListView):
+    """Historial de cierres de caja para auditoría."""
+    permission_required = ('facturacion.view_turnocaja',)
+    model = TurnoCaja
+    template_name = 'facturacion/historial_cierres.html'
+    context_object_name = 'turnos'
+    paginate_by = 25
+    ordering = ['-fecha_apertura']
+
+    def get_queryset(self):
+        return TurnoCaja.objects.filter(estatus=TurnoCaja.Estatus.CERRADA).select_related('cajero')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo'] = 'Historial de Cierres de Caja'
+        context['icono'] = 'history'
+        return context

@@ -45,4 +45,9 @@ urlpatterns = [
     path('usuarios/', views.UsuarioListView.as_view(), name='usuario_list'),
     path('usuarios/nuevo/', views.UsuarioCreateView.as_view(), name='usuario_create'),
     path('usuarios/<uuid:pk>/editar/', views.UsuarioUpdateView.as_view(), name='usuario_edit'),
+
+    # Turno Caja — Apertura, Cierre y Historial
+    path('caja/apertura/', views.AperturaCajaView.as_view(), name='apertura_caja'),
+    path('caja/cierre/', views.CierreCajaView.as_view(), name='cierre_caja'),
+    path('caja/historial/', views.HistorialCierresView.as_view(), name='historial_cierres'),
 ]

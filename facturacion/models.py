@@ -254,6 +254,14 @@ class CabeceraFactura(models.Model):
         on_delete=models.PROTECT,
         related_name='facturas',
     )
+    turno_caja = models.ForeignKey(
+        'TurnoCaja',
+        on_delete=models.PROTECT,
+        related_name='facturas',
+        null=True,
+        blank=True,
+        verbose_name='Turno de Caja'
+    )
     fecha_emision = models.DateTimeField(auto_now_add=True)
 
     tipo_documento = models.CharField(
@@ -434,3 +442,89 @@ class DetalleVenta(models.Model):
 
     def __str__(self):
         return f'{self.cabecera.numero_factura} - {self.producto.nombre} x{self.cantidad}'
+
+
+# ---------------------------------------------------------------------------
+# 7. TurnoCaja — Arqueo y Cierre de Caja por Turno
+# ---------------------------------------------------------------------------
+
+
+class TurnoCaja(models.Model):
+    """Turno de caja de un cajero (arqueo y cierre de caja)."""
+
+    class Estatus(models.TextChoices):
+        ABIERTA = 'abierta', 'Abierta'
+        CERRADA = 'cerrada', 'Cerrada'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    cajero = models.ForeignKey(
+        Usuario,
+        on_delete=models.PROTECT,
+        related_name='turnos_caja',
+        verbose_name='Cajero'
+    )
+
+    fecha_apertura = models.DateTimeField(auto_now_add=True, verbose_name='Fecha de Apertura')
+    fecha_cierre = models.DateTimeField(null=True, blank=True, verbose_name='Fecha de Cierre')
+
+    monto_inicial = models.DecimalField(max_digits=12, decimal_places=2, verbose_name='Monto Inicial (Fondo de Caja)')
+
+    # Totales según el sistema
+    monto_efectivo_sistema = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name='Efectivo Sistema')
+    monto_tarjeta_sistema = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name='Tarjeta Sistema')
+
+    # Totales declarados por el cajero
+    efectivo_declarado = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Efectivo Declarado')
+    tarjeta_declarada = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Tarjeta Declarada')
+
+    # Diferencias
+    diferencia = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name='Diferencia Total')
+
+    estatus = models.CharField(
+        max_length=10,
+        choices=Estatus.choices,
+        default=Estatus.ABIERTA,
+        verbose_name='Estatus'
+    )
+
+    notas = models.TextField(blank=True, verbose_name='Notas')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Turno de Caja'
+        verbose_name_plural = 'Turnos de Caja'
+        ordering = ['-fecha_apertura']
+        indexes = [
+            models.Index(fields=['cajero']),
+            models.Index(fields=['estatus']),
+            models.Index(fields=['fecha_apertura']),
+        ]
+
+    def clean(self):
+        """Calcular diferencia al cerrar."""
+        if self.estatus == self.Estatus.CERRADA:
+            efectivo_sistema = self.monto_efectivo_sistema or Decimal('0')
+            tarjeta_sistema = self.monto_tarjeta_sistema or Decimal('0')
+            efectivo_declarado = self.efectivo_declarado or Decimal('0')
+            tarjeta_declarada = self.tarjeta_declarada or Decimal('0')
+
+            total_sistema = efectivo_sistema + tarjeta_sistema
+            total_declarado = efectivo_declarado + tarjeta_declarada
+            self.diferencia = total_declarado - total_sistema
+        super().clean()
+
+    def save(self, *args, **kwargs):
+        user = crum.get_current_user()
+        if user and not user.pk:
+            user = None
+
+        if self._state.adding:
+            self.user_creation = user
+        self.user_updated = user
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'Turno {self.cajero.username} - {self.fecha_apertura.strftime("%d/%m/%Y %H:%M")} ({self.get_estatus_display()})'
