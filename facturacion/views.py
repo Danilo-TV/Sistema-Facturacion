@@ -758,20 +758,21 @@ class ReportSaleView(ValidarPermisosMixin, LoginRequiredMixin, TemplateView):
                 end_naive = timezone.datetime.strptime(end_date, '%Y-%m-%d')
                 end_datetime = caracas_tz.localize(end_naive.replace(hour=23, minute=59, second=59, microsecond=999999))
 
-            return self._get_report_data(request, start_datetime, end_datetime)
+                return self._get_report_data(request, start_datetime, end_datetime)
+            
+            # If no dates provided, return all invoices
+            return self._get_report_data(request)
 
         return JsonResponse({'error': 'Acción no válida'}, status=400)
 
     def _get_report_data(self, request, start_datetime=None, end_datetime=None):
         """Return JSON report data. 
         
-        If no dates provided, return ALL invoices (pagadas).
+        If no dates provided, return ALL invoices.
         If dates provided, filter by date range.
         """
-        # Use case-insensitive filter to match 'pagada' regardless of case in DB
-        queryset = CabeceraFactura.objects.filter(
-            estatus__iexact=CabeceraFactura.Estatus.PAGADA
-        ).select_related('cliente')
+        # By default show ALL invoices, filter by status only if needed
+        queryset = CabeceraFactura.objects.all().select_related('cliente')
         
         if start_datetime and end_datetime:
             queryset = queryset.filter(

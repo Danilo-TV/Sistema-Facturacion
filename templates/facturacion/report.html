@@ -92,6 +92,7 @@
 <!-- DataTables Buttons -->
 <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
 <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
@@ -148,6 +149,14 @@ $(document).ready(function() {
                 },
                 orientation: 'landscape',
                 pageSize: 'LETTER'
+            },
+            {
+                extend: 'print',
+                text: '<i class="fas fa-print"></i> Imprimir',
+                className: 'btn btn-info btn-sm',
+                exportOptions: {
+                    columns: ':visible'
+                }
             }
         ],
         language: {
@@ -161,7 +170,7 @@ $(document).ready(function() {
             {
                 data: 'total_bs',
                 render: function(data) {
-                    return '$ ' + parseFloat(data).toFixed(2);
+                    return 'Bs ' + parseFloat(data).toFixed(2);
                 }
             },
             {
@@ -237,26 +246,10 @@ $(document).ready(function() {
     // Manual search via button
     $('#btn_search').on('click', function() {
         loadReport();
-});
-});
+    });
 
-// Auto-load on page load - load all invoices immediately
-loadReport();
-
-// Auto-load on date pick (when user applies a range)
-$('#date_range').on('apply.daterangepicker', function() {
+    // Auto-load on page load - load all invoices immediately
     loadReport();
-});
-
-// Also load when user clears the date range (cancel)
-$('#date_range').on('cancel.daterangepicker', function() {
-    loadReport();
-});
-
-// Manual search via button
-$('#btn_search').on('click', function() {
-    loadReport();
-});
 });
 </script>
 {% endblock %}
