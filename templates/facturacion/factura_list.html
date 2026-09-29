@@ -48,6 +48,9 @@
                             <a href="{% url 'facturacion:factura_detail' f.pk %}" class="btn btn-sm btn-info" title="Ver">
                                 <i class="fas fa-eye"></i>
                             </a>
+                            <a href="{% url 'facturacion:factura_pdf' f.pk %}" class="btn btn-sm btn-secondary ms-1" title="PDF" target="_blank">
+                                <i class="fas fa-file-pdf"></i>
+                            </a>
                             {% if perms.facturacion.delete_cabecerafactura or user.is_superuser %}
                             <a href="{% url 'facturacion:factura_delete' f.pk %}" class="btn btn-sm btn-danger ms-1" title="Eliminar" onclick="return confirmDelete(this)">
                                 <i class="fas fa-trash"></i>
