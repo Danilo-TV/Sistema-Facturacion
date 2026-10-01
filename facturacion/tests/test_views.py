@@ -70,10 +70,9 @@ class TestLoginRequired:
         assert response.status_code == 200
 
     @pytest.mark.django_db
-    def test_factura_create_get_retorna_200(self, client):
-        """FacturaCreateView GET debe responder 200 con login y permiso."""
-        usuario = usuario_con_permisos('add_cabecerafactura')
-        client.force_login(usuario)
+    def test_factura_create_get_retorna_200(self, client, cliente_autenticado_con_turno):
+        """FacturaCreateView GET debe responder 200 con login, permiso y turno abierto."""
+        # cliente_autenticado_con_turno ya tiene un turno abierto
         response = client.get(reverse('facturacion:factura_create'))
         assert response.status_code == 200
 
