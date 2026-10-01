@@ -336,6 +336,7 @@ class FacturaTicketView(ValidarPermisosMixin, LoginRequiredMixin, DetailView):
     permission_required = ('facturacion.view_cabecerafactura',)
     model = CabeceraFactura
     template_name = 'facturacion/ticket_pos_80mm.html'
+    context_object_name = 'factura'
 
     def get_queryset(self):
         return (
@@ -344,6 +345,14 @@ class FacturaTicketView(ValidarPermisosMixin, LoginRequiredMixin, DetailView):
             .select_related('cliente', 'usuario')
             .prefetch_related('detalles__producto')
         )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        factura = self.object
+        context['cliente'] = factura.cliente
+        context['usuario'] = factura.usuario
+        context['detalles'] = factura.detalles.all()
+        return context
 
 
 class FacturaDeleteView(ValidarPermisosMixin, LoginRequiredMixin, DeleteView):
