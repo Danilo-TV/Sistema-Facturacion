@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Ticket {{ factura.numero_factura }}</title>
+    <style>
+        /* ===== BOOTSTRAP 5 CRITICAL CSS (inlined for thermal printing) ===== */
+        *, *::before, *::after { box-sizing: border-box; }
+        html { font-family: 'Courier New', 'Courier', monospace; line-height: 1.15; -webkit-text-size-adjust: 100%; }
+        body { margin: 0; font-family: 'Courier New', 'Courier', monospace; font-size: 10px; font-weight: 400; line-height: 1.3; color: #000; background-color: #fff; }
+        table { border-collapse: collapse; }
+        th { text-align: inherit; }
+        .table { width: 100%; margin-bottom: 0.5rem; color: #000; font-size: 10px; }
+        .table th, .table td { padding: 0.25rem 0.25rem; vertical-align: top; border-top: 1px solid #dee2e6; }
+        .table thead th { vertical-align: bottom; border-bottom: 1px solid #dee2e6; }
+        .table-bordered { border: 1px solid #dee2e6; }
+        .table-bordered th, .table-bordered td { border: 1px solid #dee2e6; }
+        .table-bordered thead th, .table-bordered thead td { border-bottom-width: 2px; }
+        .table-striped tbody tr:nth-of-type(odd) { background-color: rgba(0, 0, 0, 0.05); }
+        .text-right { text-align: right !important; }
+        .text-left { text-align: left !important; }
+        .text-center { text-align: center !important; }
+        .text-muted { color: #6c757d !important; }
+        .font-weight-bold { font-weight: 700 !important; }
+        .font-weight-normal { font-weight: 400 !important; }
+        .badge { display: inline-block; padding: 0.15em 0.3em; font-size: 75%; font-weight: 700; line-height: 1; text-align: center; white-space: nowrap; vertical-align: baseline; border-radius: 0.25rem; }
+        .badge-primary { color: #fff; background-color: #007bff; }
+        .badge-secondary { color: #fff; background-color: #6c757d; }
+        .badge-success { color: #fff; background-color: #28a745; }
+        .badge-info { color: #fff; background-color: #17a2b8; }
+        .badge-warning { color: #212529; background-color: #ffc107; }
+        .badge-danger { color: #fff; background-color: #dc3545; }
+        .text-center { text-align: center !important; }
+        .text-right { text-align: right !important; }
+        .d-print-none { display: block !important; }
+        @media print { .d-print-none { display: none !important; } }
+        
+        /* ===== TICKET THERMAL 80mm SPECIFIC ===== */
+        @page {
+            size: 80mm auto;
+            margin: 0;
+        }
+        
+        @media print {
+            body { width: 80mm; }
+            .no-print { display: none !important; }
+        }
+        
+        body {
+            width: 80mm;
+            max-width: 80mm;
+            margin: 0 auto;
+            padding: 0;
+            font-family: 'Courier New', 'Courier', monospace;
+            font-size: 10px;
+            line-height: 1.3;
+        }
+        
+        .ticket-wrapper {
+            width: 76mm;
+            margin: 0 auto;
+            padding: 2mm 2mm;
+        }
+        
+        .ticket-header {
+            text-align: center;
+            margin-bottom: 3mm;
+            border-bottom: 1px dashed #000;
+            padding-bottom: 2mm;
+        }
+        
+        .company-name {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 1px;
+        }
+        
+        .company-info {
+            font-size: 7px;
+            line-height: 1.2;
+        }
+        
+        .ticket-title {
+            font-size: 9px;
+            font-weight: bold;
+            margin: 2mm 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .invoice-info {
+            font-size: 8px;
+            margin-bottom: 2mm;
+        }
+        
+        .invoice-info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 1px 0;
+        }
+        
+        .client-info {
+            font-size: 8px;
+            margin-bottom: 2mm;
+        }
+        
+        .client-info-row {
+            display: flex;
+            margin: 1px 0;
+        }
+        
+        .client-label {
+            font-weight: bold;
+            width: 55px;
+            flex-shrink: 0;
+        }
+        
+        .product-table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+            margin-top: 2mm;
+            font-size: 8px;
+        }
+        
+        .product-table th {
+            background-color: #000 !important;
+            color: #fff !important;
+            font-size: 7px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 1mm 1mm;
+            border: none;
+            text-align: center;
+            vertical-align: middle;
+        }
+        
+        .product-table td {
+            padding: 1mm 1mm;
+            border-bottom: 1px dotted #ccc;
+            font-size: 8px;
+            vertical-align: middle;
+        }
+        
+        .product-table tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        .product-table tbody tr:last-child td {
+            border-bottom: 1px solid #000;
+        }
+        
+        .totals-section {
+            margin-top: 3mm;
+            font-size: 9px;
+        }
+        
+        .totals-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .totals-table td {
+            padding: 1mm 2mm;
+            border: none;
+            font-size: 9px;
+        }
+        
+        .totals-table th {
+            font-weight: bold;
+            text-align: left;
+            padding: 1mm 2mm;
+        }
+        
+        .totals-table td:last-child,
+        .totals-table th:last-child {
+            text-align: right;
+        }
+        
+        .totals-table .total-row {
+            font-weight: bold;
+            font-size: 10px;
+            border-top: 1px solid #000;
+        }
+        
+        .obs-box {
+            border-top: 1px dashed #000;
+            padding-top: 2mm;
+            margin-top: 2mm;
+            font-size: 7px;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 3mm;
+            padding-top: 2mm;
+            border-top: 1px dashed #000;
+            font-size: 7px;
+            color: #666;
+        }
+        
+        .no-print {
+            display: none !important;
+        }
+        
+        @media print {
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="ticket-wrapper">
+        
+        <!-- ===== HEADER ===== -->
+        <div class="ticket-header">
+            <div class="company-name">SISTEMA DE FACTURACIÓN</div>
+            <div class="company-info">
+                RIF J-12345678-0 &nbsp;|&nbsp; Av. Principal, Edif. Tecnológico, Piso 3, Caracas<br>
+                +58 212-555-0100 &nbsp;|&nbsp; ventas@techsolutions.com.ve
+            </div>
+        </div>
+        
+        <!-- ===== TICKET TITLE ===== -->
+        <div class="ticket-title">TICKET DE VENTA</div>
+        
+        <!-- ===== INVOICE INFO ===== -->
+        <div class="invoice-info">
+            <div class="invoice-info-row">
+                <span class="ticket-label"><strong>N° Factura:</strong></span>
+                <span>{{ factura.numero_factura }}</span>
+            </div>
+            <div class="invoice-info-row">
+                <span class="ticket-label"><strong>Fecha:</strong></span>
+                <span>{{ factura.fecha_emision|date:'d/m/Y H:i' }}</span>
+            </div>
+            <div class="invoice-info-row">
+                <span class="ticket-label"><strong>Tipo:</strong></span>
+                <span>{{ factura.get_tipo_documento_display }}</span>
+            </div>
+            <div class="invoice-info-row">
+                <span class="ticket-label"><strong>Moneda:</strong></span>
+                <span>{{ factura.get_moneda_principal_display }}</span>
+            </div>
+            <div class="invoice-info-row">
+                <span class="ticket-label"><strong>Tasa:</strong></span>
+                <span>{{ factura.tasa_cambio|floatformat:4 }} Bs/USD</span>
+            </div>
+            <div class="invoice-info-row">
+                <span class="ticket-label"><strong>Estatus:</strong></span>
+                <span>{{ factura.get_estatus_display }}</span>
+            </div>
+        </div>
+        
+        <!-- ===== CLIENT INFO ===== -->
+        <div class="client-info">
+            <div class="section-title">CLIENTE</div>
+            <div class="client-info-row">
+                <span class="client-label">Razón Social:</span>
+                <span>{{ cliente.nombre_razon_social }}</span>
+            </div>
+            <div class="client-info-row">
+                <span class="client-label">{{ cliente.get_tipo_documento_display }}:</span>
+                <span>{{ cliente.numero_documento }}</span>
+            </div>
+            {% if cliente.direccion %}
+            <div class="client-info-row">
+                <span class="client-label">Dirección:</span>
+                <span>{{ cliente.direccion }}</span>
+            </div>
+            {% endif %}
+            {% if cliente.telefono %}
+            <div class="client-info-row">
+                <span class="client-label">Teléfono:</span>
+                <span>{{ cliente.telefono }}</span>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- ===== PRODUCT TABLE ===== -->
+        <div class="section-title">DETALLE DE LA VENTA</div>
+        <table class="product-table">
+            <thead>
+                <tr>
+                    <th style="width:5%;">#</th>
+                    <th style="width:30%;">Producto</th>
+                    <th style="width:7%;">Cant.</th>
+                    <th style="width:12%;">Precio Bs</th>
+                    <th style="width:12%;">Precio USD</th>
+                    <th style="width:11%;">Subtotal Bs</th>
+                    <th style="width:11%;">IVA 16% Bs</th>
+                    <th style="width:12%;">Total Bs</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in detalles %}
+                <tr>
+                    <td style="text-align: center;">{{ forloop.counter }}</td>
+                    <td>{{ d.producto.nombre }}</td>
+                    <td style="text-align: center;">{{ d.cantidad }}</td>
+                    <td style="text-align: right;">{{ d.precio_unitario_bs|floatformat:2 }}</td>
+                    <td style="text-align: right;">{{ d.precio_unitario_usd|floatformat:2 }}</td>
+                    <td style="text-align: right;">{{ d.subtotal_bs|floatformat:2 }}</td>
+                    <td style="text-align: right;">{{ d.monto_iva_bs|floatformat:2 }}</td>
+                    <td style="text-align: right;">{{ d.total_bs|floatformat:2 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" style="text-align: center; color: #6c757d; padding: 5px 0;">
+                        No hay productos en esta factura.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <!-- ===== TOTALES ===== -->
+        <div class="totals-section">
+            <div style="width: 55%; display: inline-block; vertical-align: top; font-size: 9px; color: #555;">
+                {% if factura.observaciones %}
+                    <strong>OBSERVACIONES:</strong><br>
+                    {{ factura.observaciones }}<br><br>
+                {% endif %}
+                <em>Generado por: {{ usuario.get_full_name|default:usuario.username }}</em><br>
+                <em>Documento electrónico con validez legal — SENIAT</em>
+            </div>
+            <div style="width: 40%; display: inline-block; vertical-align: top; margin-left: 4%;">
+                <table class="totals-table" style="width: 100%; margin-top: 0;">
+                    <tr>
+                        <th>Subtotal Bs</th>
+                        <td style="text-align: right;">{{ factura.subtotal_bs|floatformat:2 }}</td>
+                    </tr>
+                    {% if factura.descuento_bs > 0 %}
+                    <tr>
+                        <th>Descuento Bs</th>
+                        <td style="text-align: right; color: red;">({{ factura.descuento_bs|floatformat:2 }})</td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <th>IVA 16% Bs</th>
+                        <td style="text-align: right;">{{ factura.monto_iva_bs|floatformat:2 }}</td>
+                    </tr>
+                    <tr>
+                        <th style="font-size: 11px;">TOTAL Bs</th>
+                        <td style="font-size: 11px; text-align: right;"><strong>{{ factura.total_bs|floatformat:2 }}</strong></td>
+                    </tr>
+                    <tr><td colspan="2" style="border:none; padding: 1px;"></td></tr>
+                    <tr>
+                        <th>Subtotal USD</th>
+                        <td style="text-align: right;">{{ factura.subtotal_usd|floatformat:2 }}</td>
+                    </tr>
+                    <tr>
+                        <th>IVA 16% USD</th>
+                        <td style="text-align: right;">{{ factura.monto_iva_usd|floatformat:2 }}</td>
+                    </tr>
+                    <tr>
+                        <th style="font-size: 11px;">TOTAL USD</th>
+                        <td style="font-size: 11px; text-align: right;"><strong>{{ factura.total_usd|floatformat:2 }}</strong></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        
+        <div class="footer">
+            Documento generado electrónicamente<br>
+            <strong>¡Gracias por su compra!</strong>
+        </div>
+        
+    </div>
+    
+    <div class="no-print text-center" style="margin-top: 10px; padding: 10px;">
+        <button class="btn btn-primary" onclick="window.print()">
+            <i class="fas fa-print"></i> Imprimir Ticket
+        </button>
+    </div>
+    
+    <script>
+        window.onload = function() {
+            window.print();
+        };
+    </script>
+</body>
+</html>
