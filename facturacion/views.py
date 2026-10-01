@@ -373,6 +373,20 @@ class FacturaCreateView(ValidarPermisosMixin, LoginRequiredMixin, TemplateView):
     permission_required = ('facturacion.add_cabecerafactura',)
     template_name = 'facturacion/factura_form.html'
 
+    def get(self, request, *args, **kwargs):
+        """Verificar turno de caja abierto antes de renderizar el formulario."""
+        # Verificar turno de caja abierto
+        try:
+            TurnoCaja.objects.get(cajero=request.user, estatus=TurnoCaja.Estatus.ABIERTA)
+        except TurnoCaja.DoesNotExist:
+            messages.error(request, 'No tiene un turno de caja abierto. Debe abrir caja antes de facturar.')
+            return redirect('facturacion:apertura_caja')
+        except TurnoCaja.MultipleObjectsReturned:
+            # Should not happen, but handle gracefully
+            pass
+
+        return super().get(request, *args, **kwargs)
+
     def post(self, request, *args, **kwargs):
         try:
             data = json.loads(request.body)

@@ -1,5 +1,6 @@
 import pytest
 from django.contrib.auth.models import Permission
+from django.core.management import call_command
 
 from facturacion.tests.factories import UsuarioFactory
 from facturacion.models import TurnoCaja
@@ -16,6 +17,14 @@ def usuario_con_permisos(*codenames):
         )
         user.user_permissions.add(perm)
     return user
+
+
+@pytest.fixture(scope='session')
+def setup_cajeros_group(django_db_setup, django_db_blocker):
+    """Configura el grupo Cajeros con los permisos correctos en la base de datos de pruebas."""
+    with django_db_blocker.unblock():
+        from django.core.management import call_command
+        call_command('setup_cajeros_perms')
 
 
 @pytest.fixture

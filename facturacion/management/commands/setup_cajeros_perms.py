@@ -16,6 +16,7 @@ from facturacion.models import (
     Cliente,
     DetalleVenta,
     Producto,
+    TurnoCaja,
 )
 
 
@@ -33,6 +34,9 @@ class Command(BaseCommand):
         'change_cliente',
         'view_producto',
         'view_categoria',
+        'add_turnocaja',
+        'change_turnocaja',
+        'view_turnocaja',
     ]
 
     def handle(self, *args, **options):
@@ -52,6 +56,7 @@ class Command(BaseCommand):
             'cliente': Cliente,
             'producto': Producto,
             'categoria': Categoria,
+            'turnocaja': TurnoCaja,
         }
 
         for perm_codename in self.PERMISOS_CAJEROS:
