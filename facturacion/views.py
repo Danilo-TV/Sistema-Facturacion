@@ -330,6 +330,22 @@ class FacturaPdfView(ValidarPermisosMixin, LoginRequiredMixin, DetailView):
         return response
 
 
+class FacturaTicketView(ValidarPermisosMixin, LoginRequiredMixin, DetailView):
+    """Genera un ticket térmico POS de 80mm para la factura."""
+
+    permission_required = ('facturacion.view_cabecerafactura',)
+    model = CabeceraFactura
+    template_name = 'facturacion/ticket_pos_80mm.html'
+
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .select_related('cliente', 'usuario')
+            .prefetch_related('detalles__producto')
+        )
+
+
 class FacturaDeleteView(ValidarPermisosMixin, LoginRequiredMixin, DeleteView):
     """Elimina una factura y restaura stock (inventario inverso).
     

@@ -29,6 +29,7 @@ urlpatterns = [
     path('facturas/nueva/', views.FacturaCreateView.as_view(), name='factura_create'),
     path('facturas/<uuid:pk>/', views.FacturaDetailView.as_view(), name='factura_detail'),
     path('facturas/<uuid:pk>/pdf/', views.FacturaPdfView.as_view(), name='factura_pdf'),
+    path('facturas/<uuid:pk>/ticket/', views.FacturaTicketView.as_view(), name='factura_ticket'),
     path('facturas/<uuid:pk>/eliminar/', views.FacturaDeleteView.as_view(), name='factura_delete'),
 
     # AJAX — Select2
