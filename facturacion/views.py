@@ -966,6 +966,19 @@ class CierreCajaView(ValidarPermisosMixin, LoginRequiredMixin, UpdateView):
     template_name = 'facturacion/cierre_caja.html'
     success_url = reverse_lazy('facturacion:factura_create')
 
+    def get_object(self, queryset=None):
+        """Get the open shift for the current user."""
+        if queryset is None:
+            queryset = self.get_queryset()
+        try:
+            return queryset.get(cajero=self.request.user, estatus=TurnoCaja.Estatus.ABIERTA)
+        except TurnoCaja.DoesNotExist:
+            from django.http import Http404
+            raise Http404("No tiene un turno de caja abierto.")
+        except TurnoCaja.MultipleObjectsReturned:
+            # Should not happen, but handle gracefully
+            return TurnoCaja.objects.filter(cajero=self.request.user, estatus=TurnoCaja.Estatus.ABIERTA).first()
+
     def get_queryset(self):
         return TurnoCaja.objects.filter(cajero=self.request.user, estatus=TurnoCaja.Estatus.ABIERTA)
 
@@ -1027,12 +1040,6 @@ class CierreCajaView(ValidarPermisosMixin, LoginRequiredMixin, UpdateView):
         else:
             messages.success(self.request, 'Caja cerrada exitosamente. Cuadrada perfecta.')
         return super().form_valid(form)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['titulo'] = 'Cierre de Caja'
-        context['icono'] = 'cash-register'
-        return context
 
 
 class HistorialCierresView(ValidarPermisosMixin, LoginRequiredMixin, ListView):
