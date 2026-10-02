@@ -135,3 +135,26 @@ SESSION_COOKIE_AGE = 28800          # 8 horas
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = False
+
+# Configuración de Email
+# https://docs.djangoproject.com/en/5.2/topics/email/
+
+# Configuración de email según entorno
+import os
+
+if DEBUG:
+    # Desarrollo/Tests: usa backend en memoria o consola
+    EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+    # Alternativa para ver en consola: 'django.core.mail.backends.console.EmailBackend'
+else:
+    # Producción: SMTP real
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+    EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+    EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
+    EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+    EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+
+# Configuración común
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'Sistema Facturación <noreply@facturacion.com>')
+EMAIL_SUBJECT_PREFIX = '[Facturación] '
