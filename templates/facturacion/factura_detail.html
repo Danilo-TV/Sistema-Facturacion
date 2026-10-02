@@ -101,10 +101,96 @@
             <a href="{% url 'facturacion:factura_pdf' factura.pk %}" class="btn btn-secondary" target="_blank" title="Descargar PDF">
                 <i class="fas fa-file-pdf"></i> PDF
             </a>
+            <a href="{% url 'facturacion:factura_ticket' factura.pk %}" class="btn btn-secondary ms-1" title="Imprimir Ticket">
+                <i class="fas fa-receipt"></i> Ticket
+            </a>
+            <a href="#" class="btn btn-outline-primary ms-1" onclick="enviarFacturaPorEmail('{{ factura.pk }}')" title="Enviar por correo">
+                <i class="fas fa-envelope"></i> Email
+            </a>
             <button class="btn btn-outline-primary ml-2" onclick="window.print()">
                 <i class="fas fa-print"></i> Imprimir
             </button>
         </div>
     </div>
 </div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function enviarFacturaPorEmail(facturaPk) {
+    Swal.fire({
+        title: 'Enviar factura por correo',
+        html: `
+            <div class="text-start">
+                <div class="mb-3">
+                    <label class="form-label">Destinatario *</label>
+                    <input type="email" id="email_destinatario" class="form-control" placeholder="cliente@email.com" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Asunto</label>
+                    <input type="text" id="email_asunto" class="form-control" value="Factura {{ factura.numero_factura|default:'' }}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Mensaje</label>
+                    <textarea id="email_mensaje" class="form-control" rows="3" placeholder="Mensaje personalizado (opcional)..."></textarea>
+                </div>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: '<i class="fas fa-paper-plane"></i> Enviar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#1e3a5f',
+        preConfirm: () => {
+            const destinatario = document.getElementById('email_destinatario').value.trim();
+            const asunto = document.getElementById('email_asunto').value.trim();
+            const mensaje = document.getElementById('email_mensaje').value.trim();
+            
+            if (!destinatario) {
+                Swal.showValidationMessage('El destinatario es obligatorio');
+                return false;
+            }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destinatario)) {
+                Swal.showValidationMessage('Email inválido');
+                return false;
+            }
+            return { destinatario, asunto: asunto || `Factura {{ factura.numero_factura|default:'' }}`, mensaje };
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            enviarFacturaEmail(facturaPk, result.value);
+        }
+    });
+}
+
+async function enviarFacturaEmail(facturaPk, data) {
+    const loadingAlert = Swal.fire({
+        title: 'Enviando...',
+        text: 'Generando PDF y enviando correo',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+    
+    try {
+        const response = await fetch(`/facturacion/facturas/${facturaPk}/email/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        loadingAlert.close();
+        
+        if (result.success) {
+            Swal.fire('¡Enviado!', result.message, 'success');
+        } else {
+            Swal.fire('Error', result.error || 'Error al enviar', 'error');
+        }
+    } catch (error) {
+        loadingAlert.close();
+        Swal.fire('Error', 'Error de conexión: ' + error.message, 'error');
+    }
+}
+</script>
 {% endblock %}

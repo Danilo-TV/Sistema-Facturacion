@@ -1,8 +1,9 @@
 import json
+import logging
 from decimal import Decimal
 
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 
 from .mixins import ValidarPermisosMixin
 from django.db import models, transaction
@@ -24,7 +25,15 @@ from django.views.generic import (
     TemplateView,
     UpdateView,
 )
+from django.views import View
+from django.core.mail import EmailMessage
+from django.template.loader import render_to_string
+from django.conf import settings
+from django.utils import timezone
+from zoneinfo import ZoneInfo
+from datetime import datetime, timedelta
 
+from .utils.pdf import generar_pdf_factura
 from .models import (
     CabeceraFactura,
     Categoria,
@@ -35,6 +44,8 @@ from .models import (
     Usuario,
 )
 from .forms import UserForm
+
+logger = logging.getLogger(__name__)
 
 
 # ======================================================================
@@ -328,6 +339,87 @@ class FacturaPdfView(ValidarPermisosMixin, LoginRequiredMixin, DetailView):
             f'attachment; filename="factura_{factura.numero_factura}.pdf"'
         )
         return response
+
+
+class FacturaEmailView(ValidarPermisosMixin, LoginRequiredMixin, DetailView):
+    """Envía una factura por correo electrónico con PDF adjunto.
+    
+    POST /facturacion/facturas/<uuid:pk>/email/
+    Body JSON: {"destinatario": "cliente@email.com", "asunto": "...", "mensaje": "..."}
+    """
+    permission_required = ('facturacion.view_cabecerafactura',)
+    model = CabeceraFactura
+    context_object_name = 'factura'
+    
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .select_related('cliente', 'usuario')
+            .prefetch_related('detalles__producto')
+        )
+    
+    def post(self, request, *args, **kwargs):
+        
+        # Validar datos de entrada
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'error': 'JSON inválido'}, status=400)
+        
+        destinatario = data.get('destinatario', '').strip()
+        asunto = data.get('asunto', '').strip()
+        mensaje = data.get('mensaje', '').strip()
+        
+        if not destinatario:
+            return JsonResponse({'success': False, 'error': 'Destinatario requerido'}, status=400)
+        
+        # Obtener factura antes del bloque try para que esté disponible en except
+        factura = self.get_object()
+        
+        if not asunto:
+            asunto = f'Factura {factura.numero_factura}'
+        
+        if not mensaje:
+            mensaje = 'Adjunto encontrará la factura correspondiente.'
+        
+        try:
+            # 1. Generar PDF en memoria
+            pdf_bytes = generar_pdf_factura(factura)
+            
+            # 2. Renderizar template HTML del email
+            html_message = render_to_string('emails/factura_email.html', {
+                'factura': factura,
+                'mensaje_personalizado': mensaje,
+            })
+            
+            # 3. Crear y enviar email
+            email = EmailMessage(
+                subject=asunto,
+                body=html_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[destinatario],
+            )
+            email.content_subtype = 'html'
+            
+            # Adjuntar PDF
+            nombre_archivo = f"factura_{factura.numero_factura}.pdf"
+            email.attach(nombre_archivo, pdf_bytes, 'application/pdf')
+            
+            # Enviar (fail_silently=False para detectar errores)
+            email.send(fail_silently=False)
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Factura {factura.numero_factura} enviada a {destinatario}'
+            })
+            
+        except Exception as e:
+            logger.error(f"Error enviando factura {factura.numero_factura}: {e}")
+            return JsonResponse({
+                'success': False, 
+                'error': f'Error al enviar correo: {str(e)}'
+            }, status=500)
 
 
 class FacturaTicketView(ValidarPermisosMixin, LoginRequiredMixin, DetailView):
