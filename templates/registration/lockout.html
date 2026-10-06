@@ -1,0 +1,56 @@
+{% extends 'facturacion/base.html' %}
+{% load static %}
+{% block title %}Cuenta Bloqueada — Facturación{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card mt-5">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0"><i class="fas fa-lock mr-2"></i>Acceso Bloqueado Temporalmente</h4>
+            </div>
+            <div class="card-body text-center py-5">
+                <div class="mb-4">
+                    <i class="fas fa-shield-alt fa-5x text-danger"></i>
+                </div>
+                <h5 class="mb-3">Demasiados intentos fallidos</h5>
+                <p class="text-muted mb-4">
+                    Por seguridad, su cuenta ha sido bloqueada temporalmente después de 
+                    <strong>{{ axes_failures|default:5 }}</strong> intentos de inicio de sesión fallidos.
+                </p>
+                <div class="alert alert-info">
+                    <i class="fas fa-clock mr-2"></i>
+                    <strong>Tiempo de espera:</strong> {{ axes_cooloff|default:1 }} hora(s)
+                </div>
+                <p class="text-muted small mb-4">
+                    Puede intentar nuevamente después del período de enfriamiento, 
+                    o contactar al administrador si necesita acceso inmediato.
+                </p>
+                <a href="{% url 'login' %}" class="btn btn-primary">
+                    <i class="fas fa-arrow-left mr-2"></i>Volver al Login
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+    // Auto-redirect after countdown (optional)
+    document.addEventListener('DOMContentLoaded', function() {
+        const alert = document.querySelector('.alert-info');
+        if (alert) {
+            let seconds = 30;
+            const updateCountdown = () => {
+                alert.innerHTML = `<i class="fas fa-clock mr-2"></i><strong>Redirigiendo en ${seconds}s...</strong>`;
+                if (seconds <= 0) {
+                    window.location.href = "{% url 'login' %}";
+                } else {
+                    seconds--;
+                    setTimeout(updateCountdown, 1000);
+                }
+            };
+            // updateCountdown(); // Uncomment to enable auto-redirect
+        }
+    });
+</script>
+{% endblock %}

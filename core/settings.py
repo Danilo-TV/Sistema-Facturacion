@@ -42,6 +42,11 @@ env = environ.Env(
     CSRF_COOKIE_HTTPONLY=(bool, True),
     CSRF_COOKIE_SAMESITE=(str, 'Lax'),
     CSRF_TRUSTED_ORIGINS=(list, []),
+    # django-axes settings
+    AXES_FAILURE_LIMIT=(int, 5),
+    AXES_COOLOFF_TIME=(float, 1.0),
+    AXES_LOCK_OUT_AT_FAILURE=(bool, True),
+    AXES_RESET_ON_SUCCESS=(bool, True),
 )
 
 # Read .env file
@@ -69,6 +74,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.humanize',
+    'axes',                    # Brute force protection
     'facturacion',
 ]
 
@@ -81,6 +87,7 @@ MIDDLEWARE = [
     'crum.CurrentRequestUserMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'axes.middleware.AxesMiddleware',  # Must be last
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -154,6 +161,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'facturacion.Usuario'
 
+# Authentication backends - AxesBackend must be first
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 # Seguridad — Login
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
@@ -182,6 +195,16 @@ SECURE_HSTS_SECONDS = env('SECURE_HSTS_SECONDS')
 SECURE_HSTS_INCLUDE_SUBDOMAINS = env('SECURE_HSTS_INCLUDE_SUBDOMAINS')
 SECURE_HSTS_PRELOAD = env('SECURE_HSTS_PRELOAD')
 
+# django-axes configuration (brute force protection)
+AXES_FAILURE_LIMIT = env('AXES_FAILURE_LIMIT')           # Max failed attempts before lockout
+AXES_COOLOFF_TIME = env('AXES_COOLOFF_TIME')             # Lockout duration in hours
+AXES_LOCK_OUT_AT_FAILURE = env('AXES_LOCK_OUT_AT_FAILURE')  # Lock out on failure
+AXES_RESET_ON_SUCCESS = env('AXES_RESET_ON_SUCCESS')     # Reset counter on successful login
+AXES_LOCKOUT_TEMPLATE = 'registration/lockout.html'      # Custom lockout template
+AXES_VERBOSE = True                                      # Log all attempts
+# Use modern lockout parameters (replaces deprecated AXES_ONLY_USER_FAILURES and AXES_LOCK_OUT_BY_COMBINATION_USER_AND_IP)
+AXES_LOCKOUT_PARAMETERS = ['username', 'ip_address']     # Lock by username + IP combination
+
 # Configuración de Email
 # https://docs.djangoproject.com/en/5.2/topics/email/
 
@@ -203,3 +226,80 @@ EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
 # Configuración común
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')
 EMAIL_SUBJECT_PREFIX = '[Facturación] '
+
+
+# Logging configuration - Security events
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {asctime} {message}',
+            'style': '{',
+        },
+        'security': {
+            'format': '[SECURITY] {asctime} {levelname} {name} {message}',
+            'style': '{',
+        },
+    },
+    'filters': {
+        'require_debug_false': {
+            '()': 'django.utils.log.RequireDebugFalse',
+        },
+        'require_debug_true': {
+            '()': 'django.utils.log.RequireDebugTrue',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'INFO',
+            'filters': ['require_debug_true'],
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'security_file': {
+            'level': 'WARNING',
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'logs' / 'security.log',
+            'formatter': 'security',
+        },
+        'security_console': {
+            'level': 'WARNING',
+            'filters': ['require_debug_true'],
+            'class': 'logging.StreamHandler',
+            'formatter': 'security',
+        },
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'logs' / 'django.log',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'django.security': {
+            'handlers': ['security_file', 'security_console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'axes': {
+            'handlers': ['security_file', 'security_console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['security_file', 'security_console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+    },
+}

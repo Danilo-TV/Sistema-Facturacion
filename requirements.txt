@@ -1,4 +1,5 @@
 django==5.2
+django-axes>=6.0
 django-environ>=0.11
 django-crum>=0.7
 pytest>=8.0
