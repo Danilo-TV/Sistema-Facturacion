@@ -18,6 +18,7 @@ db.sqlite3
 *.sqlite3
 media/
 staticfiles/
+*.log
 
 # IDE
 .vscode/
@@ -33,3 +34,6 @@ Thumbs.db
 
 # Project specific
 .atl/
+
+# Allow .env.example for version control
+!.env.example
