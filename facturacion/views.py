@@ -32,6 +32,12 @@ from django.conf import settings
 from django.utils import timezone
 from zoneinfo import ZoneInfo
 from datetime import datetime, timedelta
+from decimal import Decimal
+from django.db.models import Sum, Q
+from django.http import HttpResponse
+import csv
+from io import BytesIO
+from openpyxl import Workbook
 
 from .utils.pdf import generar_pdf_factura
 from .models import (
@@ -1143,8 +1149,409 @@ class CierreCajaView(ValidarPermisosMixin, LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
+# ======================================================================
+# CAJA — AUDITORÍA Y PANEL DE CONTROL (Admin/Supervisor)
+# ======================================================================
+
+
+class CajaHistorialAuditView(ValidarPermisosMixin, LoginRequiredMixin, ListView):
+    """Lista de cierres de caja para auditoría (Admin/Supervisor)."""
+    permission_required = ('facturacion.view_turnocaja_audit',)
+    model = TurnoCaja
+    template_name = 'facturacion/caja_historial_audit.html'
+    context_object_name = 'turnos'
+    paginate_by = 25
+    ordering = ['-fecha_cierre']
+
+    def dispatch(self, request, *args, **kwargs):
+        # Validar que es staff o tiene permiso específico
+        if not (request.user.is_staff or request.user.has_perm('facturacion.view_turnocaja_audit')):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied("Acceso denegado: Solo administradores/supervisores")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # Solo turnos cerrados por defecto
+        queryset = queryset.filter(estatus=TurnoCaja.Estatus.CERRADA)
+        
+        # Filtro por fechas
+        fecha_inicio = self.request.GET.get('fecha_inicio')
+        fecha_fin = self.request.GET.get('fecha_fin')
+        if fecha_inicio:
+            queryset = queryset.filter(fecha_apertura__date__gte=fecha_inicio)
+        if fecha_fin:
+            queryset = queryset.filter(fecha_cierre__date__lte=fecha_fin)
+        
+        # Filtro por cajero
+        cajero_id = self.request.GET.get('cajero')
+        if cajero_id:
+            queryset = queryset.filter(cajero_id=cajero_id)
+        
+        # Filtro por estatus
+        estatus = self.request.GET.get('estatus')
+        if estatus and estatus != 'TODAS':
+            queryset = queryset.filter(estatus=estatus)
+        
+        # Filtro por tipo de descuadre
+        tipo_descuadre = self.request.GET.get('tipo_descuadre')
+        if tipo_descuadre == 'CUADRADO':
+            queryset = queryset.filter(diferencia=Decimal('0'))
+        elif tipo_descuadre == 'FALTANTE':
+            queryset = queryset.filter(diferencia__lt=Decimal('0'))
+        elif tipo_descuadre == 'SOBRANTE':
+            queryset = queryset.filter(diferencia__gt=Decimal('0'))
+        
+        # Búsqueda por cajero (username/nombre)
+        q = self.request.GET.get('q')
+        if q:
+            queryset = queryset.filter(
+                Q(cajero__username__icontains=q) | 
+                Q(cajero__first_name__icontains=q) | 
+                Q(cajero__last_name__icontains=q)
+            )
+        
+        return queryset.select_related('cajero').order_by('-fecha_cierre')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo'] = 'Auditoría de Cierres de Caja'
+        context['icono'] = 'search-dollar'
+        
+        # Calcular métricas del queryset filtrado (sin paginación)
+        queryset_sin_paginar = self.get_queryset()
+        
+        total_turnos = queryset_sin_paginar.count()
+        total_efectivo_sistema = queryset_sin_paginar.aggregate(s=Sum('monto_efectivo_sistema'))['s'] or Decimal('0')
+        total_tarjeta_sistema = queryset_sin_paginar.aggregate(s=Sum('monto_tarjeta_sistema'))['s'] or Decimal('0')
+        total_sistema = total_efectivo_sistema + total_tarjeta_sistema
+        total_efectivo_declarado = queryset_sin_paginar.aggregate(s=Sum('efectivo_declarado'))['s'] or Decimal('0')
+        total_tarjeta_declarada = queryset_sin_paginar.aggregate(s=Sum('tarjeta_declarada'))['s'] or Decimal('0')
+        total_declarado = total_efectivo_declarado + total_tarjeta_declarada
+        diferencia_total = total_declarado - total_sistema
+        
+        turnos_cuadrados = queryset_sin_paginar.filter(diferencia=Decimal('0')).count()
+        turnos_faltante = queryset_sin_paginar.filter(diferencia__lt=Decimal('0')).count()
+        turnos_sobrante = queryset_sin_paginar.filter(diferencia__gt=Decimal('0')).count()
+        
+        context['metricas'] = {
+            'total_turnos': total_turnos,
+            'total_efectivo_sistema': total_efectivo_sistema,
+            'total_tarjeta_sistema': total_tarjeta_sistema,
+            'total_sistema': total_sistema,
+            'total_efectivo_declarado': total_efectivo_declarado,
+            'total_tarjeta_declarada': total_tarjeta_declarada,
+            'total_declarado': total_declarado,
+            'diferencia_total': diferencia_total,
+            'turnos_cuadrados': turnos_cuadrados,
+            'turnos_faltante': turnos_faltante,
+            'turnos_sobrante': turnos_sobrante,
+        }
+        
+        # Para los filtros en el template
+        context['filtros'] = {
+            'fecha_inicio': self.request.GET.get('fecha_inicio', ''),
+            'fecha_fin': self.request.GET.get('fecha_fin', ''),
+            'cajero': self.request.GET.get('cajero', ''),
+            'estatus': self.request.GET.get('estatus', ''),
+            'tipo_descuadre': self.request.GET.get('tipo_descuadre', ''),
+            'q': self.request.GET.get('q', ''),
+        }
+        
+        # Cajeros para el select
+        context['cajeros'] = Usuario.objects.filter(
+            turnos_caja__estatus=TurnoCaja.Estatus.CERRADA
+        ).distinct().order_by('username')
+        
+        return context
+
+
+class CajaAuditoriaDetailView(ValidarPermisosMixin, LoginRequiredMixin, DetailView):
+    """Detalle completo de un cierre de caja para auditoría."""
+    permission_required = ('facturacion.view_turnocaja_audit',)
+    model = TurnoCaja
+    template_name = 'facturacion/caja_auditoria_detail.html'
+    context_object_name = 'turno'
+
+    def dispatch(self, request, *args, **kwargs):
+        # Validar que es staff o tiene permiso específico
+        if not (request.user.is_staff or request.user.has_perm('facturacion.view_turnocaja_audit')):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied("Acceso denegado: Solo administradores/supervisores")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        return TurnoCaja.objects.filter(estatus=TurnoCaja.Estatus.CERRADA).select_related('cajero')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        turno = self.object
+        
+        context['titulo'] = f'Auditoría de Cierre - {turno.cajero.get_full_name() or turno.cajero.username}'
+        context['icono'] = 'search-dollar'
+        
+        # Facturas del turno
+        facturas = turno.facturas.filter(estatus=CabeceraFactura.Estatus.PAGADA).select_related('cliente')
+        context['facturas'] = facturas
+        
+        # Productos vendidos en el turno
+        productos_vendidos = DetalleVenta.objects.filter(
+            cabecera__turno_caja=turno,
+            cabecera__estatus=CabeceraFactura.Estatus.PAGADA
+        ).select_related('producto', 'cabecera')
+        context['productos_vendidos'] = productos_vendidos
+        
+        # Métricas del sistema (calculadas)
+        # Sumamos todos los totales independientemente de la moneda principal
+        ventas_efectivo = facturas.aggregate(total=Sum('total_bs'))['total'] or Decimal('0')
+        ventas_tarjeta = facturas.aggregate(total=Sum('total_usd'))['total'] or Decimal('0')
+        
+        # Tasa de cambio promedio del turno (usamos la primera factura)
+        primera_factura = facturas.first()
+        tasa_cambio = primera_factura.tasa_cambio if primera_factura else Decimal('1')
+        
+        total_sistema_bs = ventas_efectivo + (ventas_tarjeta * tasa_cambio)
+        
+        # Arqueo del cajero (declarado)
+        efectivo_declarado = turno.efectivo_declarado or Decimal('0')
+        tarjeta_declarada = turno.tarjeta_declarada or Decimal('0')
+        total_declarado_bs = efectivo_declarado + (tarjeta_declarada * tasa_cambio)
+        
+        # Diferencias
+        diferencia_efectivo = efectivo_declarado - ventas_efectivo
+        diferencia_tarjeta = tarjeta_declarada - ventas_tarjeta
+        diferencia_total = total_declarado_bs - total_sistema_bs
+        
+        context['ventas_efectivo_bs'] = ventas_efectivo
+        context['ventas_tarjeta_usd'] = ventas_tarjeta
+        context['tasa_cambio_promedio'] = tasa_cambio
+        context['total_sistema_bs'] = total_sistema_bs
+        context['total_declarado_bs'] = total_declarado_bs
+        context['diferencia_efectivo'] = diferencia_efectivo
+        context['diferencia_tarjeta'] = diferencia_tarjeta
+        context['diferencia_total'] = diferencia_total
+        
+        return context
+
+
+class CajaHistorialExportPDFView(ValidarPermisosMixin, LoginRequiredMixin, View):
+    """Exportar reporte de cierres de caja a PDF."""
+    permission_required = ('facturacion.export_turnocaja_audit',)
+
+    def dispatch(self, request, *args, **kwargs):
+        if not (request.user.is_staff or request.user.has_perm('facturacion.export_turnocaja_audit')):
+            from django.core.exceptions import PermissionDenied
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                from django.http import JsonResponse
+                return JsonResponse({'error': 'Acceso denegado', 'redirect': reverse('facturacion:dashboard')}, status=403)
+            raise PermissionDenied("Acceso denegado: Solo administradores/supervisores")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        # Reutilizar la lógica de filtrado de CajaHistorialAuditView
+        vista_lista = CajaHistorialAuditView()
+        vista_lista.request = request
+        vista_lista.format_kwarg = kwargs
+        turnos = vista_lista.get_queryset()
+        
+        # Calcular métricas
+        total_turnos = turnos.count()
+        total_efectivo_sistema = turnos.aggregate(s=Sum('monto_efectivo_sistema'))['s'] or Decimal('0')
+        total_tarjeta_sistema = turnos.aggregate(s=Sum('monto_tarjeta_sistema'))['s'] or Decimal('0')
+        total_sistema = total_efectivo_sistema + total_tarjeta_sistema
+        total_efectivo_declarado = turnos.aggregate(s=Sum('efectivo_declarado'))['s'] or Decimal('0')
+        total_tarjeta_declarada = turnos.aggregate(s=Sum('tarjeta_declarada'))['s'] or Decimal('0')
+        total_declarado = total_efectivo_declarado + total_tarjeta_declarada
+        diferencia_total = total_declarado - total_sistema
+        turnos_cuadrados = turnos.filter(diferencia=Decimal('0')).count()
+        turnos_faltante = turnos.filter(diferencia__lt=Decimal('0')).count()
+        turnos_sobrante = turnos.filter(diferencia__gt=Decimal('0')).count()
+        
+        # Filtros aplicados para mostrar en el reporte
+        fecha_inicio = request.GET.get('fecha_inicio', '')
+        fecha_fin = request.GET.get('fecha_fin', '')
+        
+        context = {
+            'turnos': turnos,
+            'metricas': {
+                'total_turnos': total_turnos,
+                'total_efectivo_sistema': total_efectivo_sistema,
+                'total_tarjeta_sistema': total_tarjeta_sistema,
+                'total_sistema': total_sistema,
+                'total_efectivo_declarado': total_efectivo_declarado,
+                'total_tarjeta_declarada': total_tarjeta_declarada,
+                'total_declarado': total_declarado,
+                'diferencia_total': diferencia_total,
+                'turnos_cuadrados': turnos_cuadrados,
+                'turnos_faltante': turnos_faltante,
+                'turnos_sobrante': turnos_sobrante,
+            },
+            'filtros': {
+                'fecha_inicio': fecha_inicio,
+                'fecha_fin': fecha_fin,
+            },
+            'usuario': request.user,
+            'fecha_generacion': timezone.now(),
+        }
+        
+        html_string = render_to_string('facturacion/caja_audit_report_pdf.html', context, request)
+        pdf_file = HTML(string=html_string).write_pdf(base_url=request.build_absolute_uri())
+        
+        response = HttpResponse(pdf_file, content_type='application/pdf')
+        filename = f"auditoria_cierres_caja_{timezone.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
+
+class CajaHistorialExportExcelView(ValidarPermisosMixin, LoginRequiredMixin, View):
+    """Exportar reporte de cierres de caja a Excel."""
+    permission_required = ('facturacion.export_turnocaja_audit',)
+
+    def dispatch(self, request, *args, **kwargs):
+        if not (request.user.is_staff or request.user.has_perm('facturacion.export_turnocaja_audit')):
+            from django.core.exceptions import PermissionDenied
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                from django.http import JsonResponse
+                return JsonResponse({'error': 'Acceso denegado', 'redirect': reverse('facturacion:dashboard')}, status=403)
+            raise PermissionDenied("Acceso denegado: Solo administradores/supervisores")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        vista_lista = CajaHistorialAuditView()
+        vista_lista.request = request
+        vista_lista.format_kwarg = kwargs
+        turnos = vista_lista.get_queryset()
+        
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'Reporte Cierres'
+        
+        # Headers
+        headers = [
+            'Fecha Apertura', 'Fecha Cierre', 'Cajero', 
+            'Efectivo Sistema (Bs)', 'Tarjeta Sistema (USD)',
+            'Total Sistema (Bs)', 'Efectivo Declarado (Bs)', 'Tarjeta Declarada (USD)',
+            'Total Declarado (Bs)', 'Diferencia (Bs)', 'Estado'
+        ]
+        
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = cell.font.copy(bold=True)
+        
+        # Data
+        for row_idx, turno in enumerate(turnos, 2):
+            total_sistema = (turno.monto_efectivo_sistema or Decimal('0')) + (turno.monto_tarjeta_sistema or Decimal('0'))
+            total_declarado = (turno.efectivo_declarado or Decimal('0')) + (turno.tarjeta_declarada or Decimal('0'))
+            diferencia = total_declarado - total_sistema
+            
+            if diferencia > 0:
+                estado = 'Sobrante'
+            elif diferencia < 0:
+                estado = 'Faltante'
+            else:
+                estado = 'Cuadrado'
+            
+            ws.cell(row=row_idx, column=1, value=turno.fecha_apertura.strftime('%d/%m/%Y %H:%M') if turno.fecha_apertura else '')
+            ws.cell(row=row_idx, column=2, value=turno.fecha_cierre.strftime('%d/%m/%Y %H:%M') if turno.fecha_cierre else '')
+            ws.cell(row=row_idx, column=3, value=f"{turno.cajero.get_full_name() or turno.cajero.username} ({turno.cajero.username})")
+            ws.cell(row=row_idx, column=4, value=float(turno.monto_efectivo_sistema or 0))
+            ws.cell(row=row_idx, column=5, value=float(turno.monto_tarjeta_sistema or 0))
+            ws.cell(row=row_idx, column=6, value=float(total_sistema))
+            ws.cell(row=row_idx, column=7, value=float(turno.efectivo_declarado or 0))
+            ws.cell(row=row_idx, column=8, value=float(turno.tarjeta_declarada or 0))
+            ws.cell(row=row_idx, column=9, value=float(total_declarado))
+            ws.cell(row=row_idx, column=10, value=float(diferencia))
+            ws.cell(row=row_idx, column=11, value=estado)
+        
+        # Auto-adjust column widths
+        for column in ws.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 30)
+            ws.column_dimensions[column_letter].width = adjusted_width
+        
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        response = HttpResponse(
+            output.read(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        filename = f"auditoria_cierres_caja_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
+
+class CajaHistorialExportCSVView(ValidarPermisosMixin, LoginRequiredMixin, View):
+    """Exportar reporte de cierres de caja a CSV."""
+    permission_required = ('facturacion.export_turnocaja_audit',)
+
+    def dispatch(self, request, *args, **kwargs):
+        if not (request.user.is_staff or request.user.has_perm('facturacion.export_turnocaja_audit')):
+            from django.core.exceptions import PermissionDenied
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                from django.http import JsonResponse
+                return JsonResponse({'error': 'Acceso denegado', 'redirect': reverse('facturacion:dashboard')}, status=403)
+            raise PermissionDenied("Acceso denegado: Solo administradores/supervisores")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        vista_lista = CajaHistorialAuditView()
+        vista_lista.request = request
+        vista_lista.format_kwarg = kwargs
+        turnos = vista_lista.get_queryset()
+        
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        filename = f"auditoria_cierres_caja_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        writer = csv.writer(response)
+        writer.writerow([
+            'Fecha Apertura', 'Fecha Cierre', 'Cajero', 
+            'Efectivo Sistema (Bs)', 'Tarjeta Sistema (USD)',
+            'Total Sistema (Bs)', 'Efectivo Declarado (Bs)', 'Tarjeta Declarada (USD)',
+            'Total Declarado (Bs)', 'Diferencia (Bs)', 'Estado'
+        ])
+        
+        for turno in turnos:
+            total_sistema = (turno.monto_efectivo_sistema or Decimal('0')) + (turno.monto_tarjeta_sistema or Decimal('0'))
+            total_declarado = (turno.efectivo_declarado or Decimal('0')) + (turno.tarjeta_declarada or Decimal('0'))
+            diferencia = total_declarado - total_sistema
+            
+            if diferencia > 0:
+                estado = 'Sobrante'
+            elif diferencia < 0:
+                estado = 'Faltante'
+            else:
+                estado = 'Cuadrado'
+            
+            writer.writerow([
+                turno.fecha_apertura.strftime('%d/%m/%Y %H:%M') if turno.fecha_apertura else '',
+                turno.fecha_cierre.strftime('%d/%m/%Y %H:%M') if turno.fecha_cierre else '',
+                f"{turno.cajero.get_full_name() or turno.cajero.username} ({turno.cajero.username})",
+                float(turno.monto_efectivo_sistema or 0),
+                float(turno.monto_tarjeta_sistema or 0),
+                float(total_sistema),
+                float(turno.efectivo_declarado or 0),
+                float(turno.tarjeta_declarada or 0),
+                float(total_declarado),
+                float(diferencia),
+                estado,
+            ])
+        
+        return response
+
+
 class HistorialCierresView(ValidarPermisosMixin, LoginRequiredMixin, ListView):
-    """Historial de cierres de caja para auditoría."""
+    """Historial de cierres de caja para auditoría (versión para cajeros)."""
     permission_required = ('facturacion.view_turnocaja',)
     model = TurnoCaja
     template_name = 'facturacion/historial_cierres.html'
@@ -1153,7 +1560,7 @@ class HistorialCierresView(ValidarPermisosMixin, LoginRequiredMixin, ListView):
     ordering = ['-fecha_apertura']
 
     def get_queryset(self):
-        return TurnoCaja.objects.filter(estatus=TurnoCaja.Estatus.CERRADA).select_related('cajero')
+        return TurnoCaja.objects.filter(cajero=self.request.user, estatus=TurnoCaja.Estatus.CERRADA).select_related('cajero')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

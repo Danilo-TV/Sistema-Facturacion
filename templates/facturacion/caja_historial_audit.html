@@ -1,0 +1,243 @@
+{% extends 'facturacion/base.html' %}
+{% load humanize %}
+{% block title %}{{ titulo }} — Facturación{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0"><i class="fas fa-{{ icono }} mr-2"></i>{{ titulo }}</h4>
+        <div class="btn-group" role="group">
+            <a href="{% url 'facturacion:caja_historial_export_pdf' %}?{{ request.GET.urlencode }}" class="btn btn-danger btn-sm" target="_blank">
+                <i class="fas fa-file-pdf mr-1"></i> PDF
+            </a>
+            <a href="{% url 'facturacion:caja_historial_export_excel' %}?{{ request.GET.urlencode }}" class="btn btn-success btn-sm" target="_blank">
+                <i class="fas fa-file-excel mr-1"></i> Excel
+            </a>
+            <a href="{% url 'facturacion:caja_historial_export_csv' %}?{{ request.GET.urlencode }}" class="btn btn-secondary btn-sm" target="_blank">
+                <i class="fas fa-file-csv mr-1"></i> CSV
+            </a>
+        </div>
+    </div>
+    
+    <!-- Resumen Ejecutivo -->
+    <div class="card-body">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="alert alert-info mb-3">
+                    <h5 class="mb-2"><i class="fas fa-chart-bar mr-2"></i>Resumen Ejecutivo</h5>
+                    <div class="row">
+                        <div class="col-md-2 text-center">
+                            <div class="h4 text-primary">{{ metricas.total_turnos }}</div>
+                            <small class="text-muted">Total Turnos</small>
+                        </div>
+                        <div class="col-md-2 text-center">
+                            <div class="h4 text-success">{{ metricas.total_sistema|floatformat:2 }}</div>
+                            <small class="text-muted">Total Sistema (Bs)</small>
+                        </div>
+                        <div class="col-md-2 text-center">
+                            <div class="h4 text-info">{{ metricas.total_declarado|floatformat:2 }}</div>
+                            <small class="text-muted">Total Declarado (Bs)</small>
+                        </div>
+                        <div class="col-md-2 text-center">
+                            <div class="h4 {% if metricas.diferencia_total > 0 %}text-success{% elif metricas.diferencia_total < 0 %}text-danger{% else %}text-primary{% endif %}">
+                                {{ metricas.diferencia_total|floatformat:2 }}
+                            </div>
+                            <small class="text-muted">Diferencia (Bs)</small>
+                        </div>
+                        <div class="col-md-2 text-center">
+                            <div class="h4 text-success">{{ metricas.turnos_cuadrados }}</div>
+                            <small class="text-muted">Cuadrados</small>
+                        </div>
+                        <div class="col-md-2 text-center">
+                            <div class="h4 text-danger">{{ metricas.turnos_faltante }}</div>
+                            <small class="text-muted">Faltantes</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-filter mr-2"></i>Filtros de Búsqueda</h5>
+            </div>
+            <div class="card-body">
+                <form method="get" class="row">
+                    <div class="col-md-3 mb-2">
+                        <label class="control-label">Fecha Inicio (Apertura)</label>
+                        <input type="date" name="fecha_inicio" class="form-control" value="{{ filtros.fecha_inicio }}">
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label class="control-label">Fecha Fin (Cierre)</label>
+                        <input type="date" name="fecha_fin" class="form-control" value="{{ filtros.fecha_fin }}">
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label class="control-label">Cajero</label>
+                        <select name="cajero" class="form-control select2" style="width: 100%;">
+                            <option value="">Todos los cajeros</option>
+                            {% for c in cajeros %}
+                            <option value="{{ c.pk }}" {% if c.pk|slugify == filtros.cajero|slugify %}selected{% endif %}>
+                                {{ c.get_full_name|default:c.username }} ({{ c.username }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label class="control-label">Estatus</label>
+                        <select name="estatus" class="form-control">
+                            <option value="">Todos</option>
+                            <option value="ABIERTA" {% if filtros.estatus == 'ABIERTA' %}selected{% endif %}>Abierta</option>
+                            <option value="CERRADA" {% if filtros.estatus == 'CERRADA' %}selected{% endif %}>Cerrada</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label class="control-label">Tipo Descuadre</label>
+                        <select name="tipo_descuadre" class="form-control">
+                            <option value="">Todos</option>
+                            <option value="CUADRADO" {% if filtros.tipo_descuadre == 'CUADRADO' %}selected{% endif %}>Cuadrado (0)</option>
+                            <option value="FALTANTE" {% if filtros.tipo_descuadre == 'FALTANTE' %}selected{% endif %}>Faltante (< 0)</option>
+                            <option value="SOBRANTE" {% if filtros.tipo_descuadre == 'SOBRANTE' %}selected{% endif %}>Sobrante (> 0)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label class="control-label">Buscar (Usuario/Nombre)</label>
+                        <input type="text" name="q" class="form-control" placeholder="Username, nombre o apellido" value="{{ filtros.q }}">
+                    </div>
+                    <div class="col-md-12 d-flex justify-content-end">
+                        <button type="submit" class="btn btn-primary mr-2">
+                            <i class="fas fa-search mr-1"></i> Filtrar
+                        </button>
+                        <a href="{% url 'facturacion:caja_historial_audit' %}" class="btn btn-secondary">
+                            <i class="fas fa-times mr-1"></i> Limpiar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Tabla de Cierres -->
+        <div class="table-responsive">
+            <table class="table table-striped table-hover" id="tabla-auditoria-caja">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>Fecha Apertura</th>
+                        <th>Fecha Cierre</th>
+                        <th>Cajero</th>
+                        <th class="text-right">Efectivo Sistema (Bs)</th>
+                        <th class="text-right">Tarjeta Sistema (USD)</th>
+                        <th class="text-right">Total Sistema (Bs)</th>
+                        <th class="text-right">Efectivo Declarado (Bs)</th>
+                        <th class="text-right">Tarjeta Declarada (USD)</th>
+                        <th class="text-right">Total Declarado (Bs)</th>
+                        <th class="text-right">Diferencia (Bs)</th>
+                        <th>Estado</th>
+                        <th style="width: 60px;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in turnos %}
+                    <tr>
+                        <td>{{ t.fecha_apertura|date:"d/m/Y H:i" }}</td>
+                        <td>{{ t.fecha_cierre|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            <strong>{{ t.cajero.get_full_name|default:t.cajero.username }}</strong>
+                            <br><small class="text-muted">@{{ t.cajero.username }}</small>
+                        </td>
+                        <td class="text-right">{{ t.monto_efectivo_sistema|floatformat:2 }}</td>
+                        <td class="text-right">${{ t.monto_tarjeta_sistema|floatformat:2 }}</td>
+                        <td class="text-right font-weight-bold">
+                            {{ t.monto_efectivo_sistema|add:t.monto_tarjeta_sistema|floatformat:2 }}
+                        </td>
+                        <td class="text-right">{{ t.efectivo_declarado|floatformat:2 }}</td>
+                        <td class="text-right">${{ t.tarjeta_declarada|floatformat:2 }}</td>
+                        <td class="text-right font-weight-bold">
+                            {{ t.efectivo_declarado|add:t.tarjeta_declarada|floatformat:2 }}
+                        </td>
+                        <td class="text-right font-weight-bold {% if t.diferencia > 0 %}text-success{% elif t.diferencia < 0 %}text-danger{% else %}text-primary{% endif %}">
+                            {{ t.diferencia|floatformat:2 }}
+                        </td>
+                        <td>
+                            <span class="badge 
+                                {% if t.diferencia > 0 %}bg-success
+                                {% elif t.diferencia < 0 %}bg-danger
+                                {% else %}bg-primary{% endif %}">
+                                {% if t.diferencia > 0 %}
+                                    <i class="fas fa-arrow-up mr-1"></i> Sobrante
+                                {% elif t.diferencia < 0 %}
+                                    <i class="fas fa-arrow-down mr-1"></i> Faltante
+                                {% else %}
+                                    <i class="fas fa-check-circle mr-1"></i> Cuadrado
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'facturacion:caja_auditoria_detail' t.pk %}" 
+                               class="btn btn-sm btn-info" title="Ver detalle">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="12" class="text-center text-muted py-4">
+                            <i class="fas fa-search fa-2x mb-2"></i><br>
+                            No se encontraron cierres de caja con los filtros aplicados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación -->
+        {% if is_paginated %}
+        <nav aria-label="Paginación" class="mt-3">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">&laquo; Anterior</a>
+                </li>
+                {% endif %}
+                
+                <li class="page-item disabled"><span class="page-link">Página {{ page_obj.number }} de {{ paginator.num_pages }}</span></li>
+                
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">Siguiente &raquo;</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Inicializar Select2
+    $('.select2').select2({
+        theme: 'bootstrap4',
+        language: 'es',
+        placeholder: 'Seleccionar...',
+        allowClear: true,
+    });
+    
+    // DataTable
+    $('#tabla-auditoria-caja').DataTable({
+        language: { url: '//cdn.datatables.net/plug-ins/1.13/i18n/es-ES.json' },
+        pageLength: 25,
+        ordering: true,
+        searching: false, // Usamos filtros del servidor
+        order: [[0, 'desc']],
+        columnDefs: [
+            { orderable: false, targets: [10, 11] }
+        ],
+        dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
+             "<'row'<'col-sm-12'tr>>" +
+             "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+    });
+});
+</script>
+{% endblock %}

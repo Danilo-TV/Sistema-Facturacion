@@ -52,4 +52,13 @@ urlpatterns = [
     path('caja/apertura/', views.AperturaCajaView.as_view(), name='apertura_caja'),
     path('caja/cierre/', views.CierreCajaView.as_view(), name='cierre_caja'),
     path('caja/historial/', views.HistorialCierresView.as_view(), name='historial_cierres'),
+
+    # Auditoría de Caja (Admin/Supervisor)
+    path('caja/historial/auditoria/', views.CajaHistorialAuditView.as_view(), name='caja_historial_audit'),
+    path('caja/historial/auditoria/<uuid:pk>/', views.CajaAuditoriaDetailView.as_view(), name='caja_auditoria_detail'),
+
+    # Exportación
+    path('caja/historial/export/pdf/', views.CajaHistorialExportPDFView.as_view(), name='caja_historial_export_pdf'),
+    path('caja/historial/export/excel/', views.CajaHistorialExportExcelView.as_view(), name='caja_historial_export_excel'),
+    path('caja/historial/export/csv/', views.CajaHistorialExportCSVView.as_view(), name='caja_historial_export_csv'),
 ]

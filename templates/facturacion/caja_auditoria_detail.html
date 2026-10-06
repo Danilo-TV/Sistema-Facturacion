@@ -1,0 +1,350 @@
+{% extends 'facturacion/base.html' %}
+{% load humanize %}
+{% block title %}{{ titulo }} — Facturación{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="fas fa-{{ icono }} mr-2"></i>{{ titulo }}</h4>
+                <div class="btn-group" role="group">
+                    <a href="{% url 'facturacion:caja_historial_audit' %}" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-arrow-left mr-1"></i> Volver
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- 1. Información General del Turno -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0"><i class="fas fa-info-circle mr-2"></i>Información General del Turno</h5>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-sm table-borderless mb-0">
+                                    <tr>
+                                        <td><strong>Cajero:</strong></td>
+                                        <td>{{ turno.cajero.get_full_name|default:turno.cajero.username }} (@{{ turno.cajero.username }})</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Fecha Apertura:</strong></td>
+                                        <td>{{ turno.fecha_apertura|date:"d/m/Y H:i" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Fecha Cierre:</strong></td>
+                                        <td>{{ turno.fecha_cierre|date:"d/m/Y H:i" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Duración:</strong></td>
+                                        <td>
+                                            {% if turno.fecha_apertura and turno.fecha_cierre %}
+                                                {% with diff=turno.fecha_cierre|timeuntil:turno.fecha_apertura %}
+                                                    {{ diff }}
+                                                {% endwith %}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Monto Inicial (Fondo):</strong></td>
+                                        <td>Bs {{ turno.monto_inicial|floatformat:2 }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Estatus:</strong></td>
+                                        <td>
+                                            <span class="badge bg-success">{{ turno.get_estatus_display }}</span>
+                                        </td>
+                                    </tr>
+                                    {% if turno.notas %}
+                                    <tr>
+                                        <td><strong>Notas:</strong></td>
+                                        <td>{{ turno.notas }}</td>
+                                    </tr>
+                                    {% endif %}
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0"><i class="fas fa-balance-scale mr-2"></i>Resumen de Diferencias</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="text-center p-2">
+                                            <div class="h5 text-primary">{{ ventas_efectivo_bs|floatformat:2 }}</div>
+                                            <small class="text-muted">Ventas Efectivo (Bs)</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 text-center">
+                                        <div class="h5 text-info">${{ ventas_tarjeta_usd|floatformat:2 }}</div>
+                                        <small class="text-muted">Ventas Tarjeta (USD)</small>
+                                    </div>
+                                </div>
+                                <hr>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="text-center p-2">
+                                            <div class="h5 text-primary">{{ total_sistema_bs|floatformat:2 }}</div>
+                                            <small class="text-muted">Total Sistema (Bs)</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 text-center">
+                                        <i class="fas fa-arrow-right fa-2x text-muted"></i>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="text-center p-2">
+                                            <div class="h5 {% if total_declarado_bs > total_sistema_bs %}text-success{% elif total_declarado_bs < total_sistema_bs %}text-danger{% else %}text-primary{% endif %}">{{ total_declarado_bs|floatformat:2 }}</div>
+                                            <small class="text-muted">Total Declarado (Bs)</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <hr>
+                                <div class="row justify-content-center">
+                                    <div class="col-md-4 text-center">
+                                        <div class="h4 {% if diferencia_total > 0 %}text-success{% elif diferencia_total < 0 %}text-danger{% else %}text-primary{% endif %}">
+                                            {{ diferencia_total|floatformat:2 }}
+                                        </div>
+                                        <small class="text-muted">Diferencia Total (Bs)</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Métricas del Sistema (Calculadas) -->
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0"><i class="fas fa-cash-register mr-2"></i>Métricas del Sistema</h5>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-sm table-borderless mb-0">
+                                    <tr>
+                                        <td><strong>Ventas Efectivo (Bs):</strong></td>
+                                        <td class="text-right">{{ ventas_efectivo_bs|floatformat:2 }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Ventas Tarjeta (USD):</strong></td>
+                                        <td class="text-right">${{ ventas_tarjeta_usd|floatformat:2 }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Tasa Cambio Promedio:</strong></td>
+                                        <td class="text-right">{{ tasa_cambio_promedio|floatformat:4 }} Bs/USD</td>
+                                    </tr>
+                                    <tr class="font-weight-bold">
+                                        <td><strong>Total Sistema (Bs):</strong></td>
+                                        <td class="text-right"><strong>{{ total_sistema_bs|floatformat:2 }}</strong></td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0"><i class="fas fa-hand-holding-usd mr-2"></i>Arqueo del Cajero</h5>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-sm table-borderless mb-0">
+                                    <tr>
+                                        <td><strong>Efectivo Declarado (Bs):</strong></td>
+                                        <td class="text-right">{{ turno.efectivo_declarado|floatformat:2 }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Tarjeta Declarada (USD):</strong></td>
+                                        <td class="text-right">${{ turno.tarjeta_declarada|floatformat:2 }}</td>
+                                    </tr>
+                                    <tr class="font-weight-bold">
+                                        <td><strong>Total Declarado (Bs):</strong></td>
+                                        <td class="text-right"><strong>{{ total_declarado_bs|floatformat:2 }}</strong></td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0"><i class="fas fa-exclamation-triangle mr-2"></i>Diferencias (Descuadres)</h5>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-sm table-borderless mb-0">
+                                    <tr>
+                                        <td><strong>Diferencia Efectivo (Bs):</strong></td>
+                                        <td class="text-right {% if diferencia_efectivo > 0 %}text-success{% elif diferencia_efectivo < 0 %}text-danger{% else %}text-primary{% endif %}">
+                                            {{ diferencia_efectivo|floatformat:2 }}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Diferencia Tarjeta (USD):</strong></td>
+                                        <td class="text-right {% if diferencia_tarjeta > 0 %}text-success{% elif diferencia_tarjeta < 0 %}text-danger{% else %}text-primary{% endif %}">
+                                            ${{ diferencia_tarjeta|floatformat:2 }}
+                                        </td>
+                                    </tr>
+                                    <tr class="font-weight-bold">
+                                        <td><strong>Diferencia Total (Bs):</strong></td>
+                                        <td class="text-right {% if diferencia_total > 0 %}text-success{% elif diferencia_total < 0 %}text-danger{% else %}text-primary{% endif %}">
+                                            <strong>{{ diferencia_total|floatformat:2 }}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Listado de Facturas del Turno -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-file-invoice mr-2"></i>Facturas del Turno ({{ facturas.count }})</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover" id="tabla-facturas-turno">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>N° Factura</th>
+                                        <th>Cliente</th>
+                                        <th>Fecha</th>
+                                        <th>Tipo</th>
+                                        <th>Moneda</th>
+                                        <th class="text-right">Total Bs</th>
+                                        <th class="text-right">Total USD</th>
+                                        <th>Estatus</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for f in facturas %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'facturacion:factura_detail' f.pk %}" target="_blank">
+                                                {{ f.numero_factura }}
+                                            </a>
+                                        </td>
+                                        <td>{{ f.cliente.nombre_razon_social }}</td>
+                                        <td>{{ f.fecha_emision|date:"d/m/Y H:i" }}</td>
+                                        <td>{{ f.get_tipo_documento_display }}</td>
+                                        <td>{{ f.get_moneda_principal_display }}</td>
+                                        <td class="text-right">{{ f.total_bs|floatformat:2 }}</td>
+                                        <td class="text-right">${{ f.total_usd|floatformat:2 }}</td>
+                                        <td>
+                                            <span class="badge {% if f.estatus == 'pagada' %}bg-success{% elif f.estatus == 'cancelada' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                                                {{ f.get_estatus_display }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="8" class="text-center text-muted py-4">
+                                            <i class="fas fa-file-invoice fa-2x mb-2"></i><br>
+                                            No hay facturas en este turno.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Detalle de Productos Vendidos (Colapsable) -->
+                <div class="card">
+                    <div class="card-header" id="headingProductos" data-toggle="collapse" data-target="#collapseProductos" aria-expanded="false" style="cursor: pointer;">
+                        <h5 class="mb-0 d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-boxes mr-2"></i>Productos Vendidos ({{ productos_vendidos.count }})</span>
+                            <i class="fas fa-chevron-down" id="iconProductos"></i>
+                        </h5>
+                    </div>
+                    <div id="collapseProductos" class="collapse" aria-labelledby="headingProductos">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover" id="tabla-productos-turno">
+                                    <thead class="thead-dark">
+                                        <tr>
+                                            <th>Producto</th>
+                                            <th class="text-center">Cantidad</th>
+                                            <th class="text-right">Precio Unit. (Bs)</th>
+                                            <th class="text-right">Precio Unit. (USD)</th>
+                                            <th class="text-right">Subtotal (Bs)</th>
+                                            <th class="text-right">IVA 16% (Bs)</th>
+                                            <th class="text-right">Total (Bs)</th>
+                                            <th>Factura</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for d in productos_vendidos %}
+                                        <tr>
+                                            <td>{{ d.producto.nombre }}</td>
+                                            <td class="text-center">{{ d.cantidad }}</td>
+                                            <td class="text-right">{{ d.precio_unitario_bs|floatformat:2 }}</td>
+                                            <td class="text-right">${{ d.precio_unitario_usd|floatformat:2 }}</td>
+                                            <td class="text-right">{{ d.subtotal_bs|floatformat:2 }}</td>
+                                            <td class="text-right">{{ d.monto_iva_bs|floatformat:2 }}</td>
+                                            <td class="text-right font-weight-bold">{{ d.total_bs|floatformat:2 }}</td>
+                                            <td>
+                                                <a href="{% url 'facturacion:factura_detail' d.cabecera.pk %}" target="_blank" class="text-muted">
+                                                    {{ d.cabecera.numero_factura }}
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="8" class="text-center text-muted py-4">
+                                                <i class="fas fa-boxes fa-2x mb-2"></i><br>
+                                                No hay productos vendidos en este turno.
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // DataTable para facturas
+    $('#tabla-facturas-turno').DataTable({
+        language: { url: '//cdn.datatables.net/plug-ins/1.13/i18n/es-ES.json' },
+        pageLength: 10,
+        ordering: true,
+        searching: true,
+        order: [[2, 'desc']],
+        dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
+             "<'row'<'col-sm-12'tr>>" +
+             "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+    });
+    
+    // DataTable para productos
+    $('#tabla-productos-turno').DataTable({
+        language: { url: '//cdn.datatables.net/plug-ins/1.13/i18n/es-ES.json' },
+        pageLength: 15,
+        ordering: true,
+        searching: true,
+        order: [[0, 'asc']],
+        dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
+             "<'row'<'col-sm-12'tr>>" +
+             "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+    });
+    
+    // Toggle icon para collapse
+    $('#headingProductos').on('click', function() {
+        $('#iconProductos').toggleClass('fa-chevron-down fa-chevron-up');
+    });
+});
+</script>
+{% endblock %}

@@ -497,6 +497,10 @@ class TurnoCaja(models.Model):
         verbose_name = 'Turno de Caja'
         verbose_name_plural = 'Turnos de Caja'
         ordering = ['-fecha_apertura']
+        permissions = [
+            ('view_turnocaja_audit', 'Puede ver auditoría de turnos de caja'),
+            ('export_turnocaja_audit', 'Puede exportar reportes de turnos de caja'),
+        ]
         indexes = [
             models.Index(fields=['cajero']),
             models.Index(fields=['estatus']),

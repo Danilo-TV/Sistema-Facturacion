@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte de Cierres de Caja</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'DejaVu Sans', 'Arial', sans-serif; 
+            font-size: 11px; 
+            line-height: 1.4; 
+            color: #000; 
+            background-color: #fff; 
+            margin: 0; 
+            padding: 20px;
+        }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #dee2e6; padding: 6px 8px; text-align: left; }
+        th { background-color: #343a40; color: #fff; font-weight: bold; }
+        .text-right { text-align: right !important; }
+        .text-center { text-align: center !important; }
+        .text-success { color: #28a745 !important; }
+        .text-danger { color: #dc3545 !important; }
+        .text-primary { color: #007bff !important; }
+        .font-weight-bold { font-weight: 700 !important; }
+        .badge { display: inline-block; padding: 0.25em 0.5em; font-size: 75%; font-weight: 700; border-radius: 0.25rem; }
+        .badge-success { background-color: #28a745; color: #fff; }
+        .badge-danger { background-color: #dc3545; color: #fff; }
+        .badge-primary { background-color: #007bff; color: #fff; }
+        .header-section { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #343a40; padding-bottom: 15px; }
+        .header-section h1 { margin: 0 0 5px 0; font-size: 22px; }
+        .header-section p { margin: 2px 0; font-size: 11px; }
+        .summary-section { margin-bottom: 20px; }
+        .summary-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 15px; }
+        .summary-box { border: 1px solid #dee2e6; border-radius: 4px; padding: 10px; text-align: center; }
+        .summary-box .label { font-size: 10px; color: #6c757d; text-transform: uppercase; }
+        .summary-box .value { font-size: 14px; font-weight: bold; }
+        .summary-box.text-success .value { color: #28a745; }
+        .summary-box.text-danger .value { color: #dc3545; }
+        .summary-box.text-primary .value { color: #007bff; }
+        .summary-box.text-info .value { color: #17a2b8; }
+        .filters-section { margin-bottom: 20px; padding: 10px; background-color: #f8f9fa; border-radius: 4px; font-size: 10px; }
+        .filters-section strong { font-size: 11px; }
+        .data-table { font-size: 10px; }
+        .data-table th, .data-table td { padding: 4px 6px; }
+        .page-break { page-break-before: always; }
+        @media print {
+            body { padding: 0; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header-section">
+        <h1>REPORTE DE CIERRES DE CAJA</h1>
+        <p><strong>Período:</strong> {% if filtros.fecha_inicio %}{{ filtros.fecha_inicio }}{% else %}Inicio{% endif %} - {% if filtros.fecha_fin %}{{ filtros.fecha_fin }}{% else %}Fin{% endif %}</p>
+        <p><strong>Generado:</strong> {{ fecha_generacion|date:"d/m/Y H:i" }} | <strong>Usuario:</strong> {{ usuario.get_full_name|default:usuario.username }}</p>
+    </div>
+
+    <!-- Resumen Ejecutivo -->
+    <div class="summary-section">
+        <h3 style="border-bottom: 1px solid #343a40; padding-bottom: 5px; margin-bottom: 15px;">RESUMEN EJECUTIVO</h3>
+        <div class="summary-grid">
+            <div class="summary-box">
+                <div class="label">Total Turnos Cerrados</div>
+                <div class="value">{{ metricas.total_turnos }}</div>
+            </div>
+            <div class="summary-box">
+                <div class="label">Total Efectivo Sistema (Bs)</div>
+                <div class="value">{{ metricas.total_efectivo_sistema|floatformat:2 }}</div>
+            </div>
+            <div class="summary-box">
+                <div class="label">Total Tarjeta Sistema (USD)</div>
+                <div class="value">${{ metricas.total_tarjeta_sistema|floatformat:2 }}</div>
+            </div>
+            <div class="summary-box">
+                <div class="label">Total Sistema (Bs)</div>
+                <div class="value text-info">{{ metricas.total_sistema|floatformat:2 }}</div>
+            </div>
+            <div class="summary-box">
+                <div class="label">Total Declarado (Bs)</div>
+                <div class="value">{{ metricas.total_declarado|floatformat:2 }}</div>
+            </div>
+            <div class="summary-box">
+                <div class="label">Diferencia Total (Bs)</div>
+                <div class="value {% if metricas.diferencia_total > 0 %}text-success{% elif metricas.diferencia_total < 0 %}text-danger{% else %}text-primary{% endif %}">{{ metricas.diferencia_total|floatformat:2 }}</div>
+            </div>
+        </div>
+        <div class="summary-grid">
+            <div class="summary-box text-success">
+                <div class="label">Turnos Cuadrados</div>
+                <div class="value">{{ metricas.turnos_cuadrados }}</div>
+            </div>
+            <div class="summary-box text-danger">
+                <div class="label">Turnos con Faltante</div>
+                <div class="value">{{ metricas.turnos_faltante }}</div>
+            </div>
+            <div class="summary-box text-success">
+                <div class="label">Turnos con Sobrante</div>
+                <div class="value">{{ metricas.turnos_sobrante }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros aplicados -->
+    <div class="filters-section">
+        <strong>Filtros aplicados:</strong>
+        {% if filtros.fecha_inicio or filtros.fecha_fin %}
+            <span>Fecha: {{ filtros.fecha_inicio|default:"Inicio" }} - {{ filtros.fecha_fin|default:"Fin" }}</span>
+        {% endif %}
+        {% if filtros.cajero %} | <span>Cajero: {{ filtros.cajero }}</span>{% endif %}
+        {% if filtros.tipo_descuadre %} | <span>Descuadre: {{ filtros.tipo_descuadre }}</span>{% endif %}
+        {% if filtros.q %} | <span>Búsqueda: {{ filtros.q }}</span>{% endif %}
+    </div>
+
+    <!-- Detalle por Turno -->
+    <h3 style="border-bottom: 1px solid #343a40; padding-bottom: 5px; margin-bottom: 15px;">DETALLE POR TURNO</h3>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 10%;">Fecha Apertura</th>
+                <th style="width: 10%;">Fecha Cierre</th>
+                <th style="width: 15%;">Cajero</th>
+                <th style="width: 10%;" class="text-right">Efectivo Sistema</th>
+                <th style="width: 10%;" class="text-right">Tarjeta Sistema</th>
+                <th style="width: 10%;" class="text-right">Total Sistema</th>
+                <th style="width: 10%;" class="text-right">Efectivo Decl.</th>
+                <th style="width: 10%;" class="text-right">Tarjeta Decl.</th>
+                <th style="width: 10%;" class="text-right">Total Decl.</th>
+                <th style="width: 10%;" class="text-right">Diferencia</th>
+                <th style="width: 8%;">Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in turnos %}
+            <tr>
+                <td>{{ t.fecha_apertura|date:"d/m/Y H:i" }}</td>
+                <td>{{ t.fecha_cierre|date:"d/m/Y H:i" }}</td>
+                <td>{{ t.cajero.get_full_name|default:t.cajero.username }} (@{{ t.cajero.username }})</td>
+                <td class="text-right">{{ t.monto_efectivo_sistema|floatformat:2 }}</td>
+                <td class="text-right">${{ t.monto_tarjeta_sistema|floatformat:2 }}</td>
+                <td class="text-right font-weight-bold">{{ t.monto_efectivo_sistema|add:t.monto_tarjeta_sistema|floatformat:2 }}</td>
+                <td class="text-right">{{ t.efectivo_declarado|floatformat:2 }}</td>
+                <td class="text-right">${{ t.tarjeta_declarada|floatformat:2 }}</td>
+                <td class="text-right font-weight-bold">{{ t.efectivo_declarado|add:t.tarjeta_declarada|floatformat:2 }}</td>
+                <td class="text-right font-weight-bold {% if t.diferencia > 0 %}text-success{% elif t.diferencia < 0 %}text-danger{% else %}text-primary{% endif %}">{{ t.diferencia|floatformat:2 }}</td>
+                <td class="text-center">
+                    <span class="badge {% if t.diferencia > 0 %}badge-success{% elif t.diferencia < 0 %}badge-danger{% else %}badge-primary{% endif %}">
+                        {% if t.diferencia > 0 %}Sobrante{% elif t.diferencia < 0 %}Faltante{% else %}Cuadrado{% endif %}
+                    </span>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="11" class="text-center text-muted" style="padding: 20px;">No hay datos para mostrar</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
